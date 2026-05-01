@@ -9,14 +9,14 @@ from telegram.ext import (
 )
 
 # ============================================================
-# CONFIG & LOGGING [Giữ nguyên cite: 1, 2]
+# CONFIG & LOGGING
 # ============================================================
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ============================================================
-# TOÁN HỌC TỨ TRỤ NÂNG CAO [Giữ nguyên cite: 1, 2]
+# TOÁN HỌC TỨ TRỤ NÂNG CAO
 # ============================================================
 THIEN_CAN = ["Giáp", "Ất", "Bính", "Đinh", "Mậu", "Kỷ", "Canh", "Tân", "Nhâm", "Quý"]
 DIA_CHI   = ["Tý", "Sửu", "Dần", "Mão", "Thìn", "Tỵ", "Ngọ", "Mùi", "Thân", "Dậu", "Tuất", "Hợi"]
@@ -34,7 +34,29 @@ LUC_HOP = {frozenset({"Tý", "Sửu"}), frozenset({"Dần", "Hợi"}), frozenset
 LUC_XUNG = {frozenset({"Tý", "Ngọ"}), frozenset({"Sửu", "Mùi"}), frozenset({"Dần", "Thân"}), frozenset({"Mão", "Dậu"}), frozenset({"Thìn", "Tuất"}), frozenset({"Tỵ", "Hợi"})}
 
 # ------------------------------------------------------------
-# HÀM TÍNH TOÁN LOGIC GỐC [Giữ nguyên cite: 1, 2]
+# [BỔ SUNG] LÝ THUYẾT VÒNG TRƯỜNG SINH & HỆ SỐ NĂNG LƯỢNG
+# ------------------------------------------------------------
+TRUONG_SINH_SEQ = ["Trường Sinh", "Mộc Dục", "Quan Đới", "Lâm Quan", "Đế Vượng", "Suy", "Bệnh", "Tử", "Mộ", "Tuyệt", "Thai", "Dưỡng"]
+# Map bắt đầu: Dương tiến (1), Âm lùi (-1)
+CAN_TS_START = {
+    "Giáp":("Hợi", 1), "Ất":("Ngọ", -1), "Bính":("Dần", 1), "Đinh":("Dậu", -1), "Mậu":("Dần", 1), 
+    "Kỷ":("Dậu", -1), "Canh":("Tỵ", 1), "Tân":("Tý", -1), "Nhâm":("Thân", 1), "Quý":("Mão", -1)
+}
+TS_HE_SO = {
+    "Đế Vượng": 1.4, "Lâm Quan": 1.3, "Trường Sinh": 1.2, "Quan Đới": 1.1, "Mộc Dục": 1.0, 
+    "Dưỡng": 1.0, "Thai": 0.9, "Suy": 0.9, "Mộ": 0.8, "Bệnh": 0.7, "Tử": 0.5, "Tuyệt": 0.4
+}
+
+def get_truong_sinh(can, chi):
+    if can not in CAN_TS_START or chi not in DIA_CHI: return "N/A"
+    start_chi, step = CAN_TS_START[can]
+    idx_start = DIA_CHI.index(start_chi)
+    idx_target = DIA_CHI.index(chi)
+    dist = (idx_target - idx_start) * step
+    return TRUONG_SINH_SEQ[dist % 12]
+
+# ------------------------------------------------------------
+# HÀM TÍNH TOÁN LOGIC GỐC
 # ------------------------------------------------------------
 def tinh_thap_than(nhat_chu, can_check):
     if nhat_chu not in NGU_HANH or can_check not in NGU_HANH: return "N/A"
@@ -73,9 +95,6 @@ def get_season_multiplier(month_chi, day_chi):
     vuong_element = next((k for k, v in seasons.items() if month_chi in v), None)
     return 1.3 if day_nh == vuong_element else 1.0
 
-# ------------------------------------------------------------
-# LOGIC CHUYÊN GIA BỔ SUNG [Dựa trên toán học hệ số]
-# ------------------------------------------------------------
 def tinh_suc_manh_nhat_chu(ls):
     nh_chu = NGU_HANH[ls["nhat_chu"]]
     chi_thang = ls["thang"]["chi"]
@@ -86,13 +105,57 @@ def get_dich_ma(chi):
     ma_map = {"Thân":"Dần","Tý":"Dần","Thìn":"Dần","Tỵ":"Hợi","Dậu":"Hợi","Sửu":"Hợi","Dần":"Thân","Ngọ":"Thân","Tuất":"Thân","Hợi":"Tỵ","Mão":"Tỵ","Mùi":"Tỵ"}
     return ma_map.get(chi)
 
+# ------------------------------------------------------------
+# [BỔ SUNG] THUẬT TOÁN TÌM DỤNG THẦN
+# ------------------------------------------------------------
+def xac_dinh_dung_than(ls):
+    nc_hanh = NGU_HANH[ls["nhat_chu"]]
+    diem_tuong_tro = 0
+    
+    # Gom các hành lộ diện trong lá số
+    cac_hanh = [
+        NGU_HANH.get(ls["nam"]["can"]), NGU_HANH.get(ls["nam"]["chi"]),
+        NGU_HANH.get(ls["thang"]["chi"]), NGU_HANH.get(ls["ngay"]["chi"]),
+        NGU_HANH.get(ls["gio"]["can"]), NGU_HANH.get(ls["gio"]["chi"])
+    ]
+    
+    # Tính điểm Thân
+    for h in cac_hanh:
+        if h == nc_hanh or TUONG_SINH.get(h) == nc_hanh: 
+            diem_tuong_tro += 1
+            
+    # Thêm hệ số đắc lệnh tháng
+    if tinh_suc_manh_nhat_chu(ls) > 1.0: 
+        diem_tuong_tro += 1.5 
+        
+    than_vuong = diem_tuong_tro >= 3.5
+    
+    if than_vuong:
+        # Thân Vượng -> Cần Tiết/Hao/Khắc (Thực Thương, Tài, Quan)
+        dung_than = [k for k in ["Mộc","Hỏa","Thổ","Kim","Thủy"] if k != nc_hanh and TUONG_SINH.get(k) != nc_hanh]
+    else:
+        # Thân Nhược -> Cần Sinh/Phù (Ấn, Tỷ Kiếp)
+        dung_than = [nc_hanh, next(k for k,v in TUONG_SINH.items() if v == nc_hanh)]
+        
+    return dung_than, "Vượng" if than_vuong else "Nhược"
+
+# ------------------------------------------------------------
+# LOGIC CHUYÊN GIA (ĐÃ TÍCH HỢP TRƯỜNG SINH & DỤNG THẦN)
+# ------------------------------------------------------------
 def phan_tich_chuyen_gia_3_mon(ngay_check: date, ls: dict):
     _, month_chi = get_tiet_khi(ngay_check)
     tt_now = build_tu_tru(ngay_check.year, month_chi, ngay_check, 12)
     thap_than = tinh_thap_than(ls["nhat_chu"], tt_now["ngay"]["can"])
     suc_manh = tinh_suc_manh_nhat_chu(ls)
     chi_ngay = tt_now["ngay"]["chi"]
+    ngay_hanh = NGU_HANH.get(chi_ngay)
     
+    # [BỔ SUNG] Khởi tạo Dụng thần và Trường Sinh
+    dung_than, _ = xac_dinh_dung_than(ls)
+    ts_state = get_truong_sinh(ls["nhat_chu"], chi_ngay)
+    he_so_ts = TS_HE_SO.get(ts_state, 1.0)
+    
+    # Logic base cũ
     s_trade = 5.0 + (3.5 * suc_manh if thap_than in ["Thiên Tài", "Chính Tài"] else -3.0 if thap_than == "Kiếp Tài" else 0)
     if frozenset({chi_ngay, ls["ngay"]["chi"]}) in LUC_XUNG: s_trade -= 2.5
 
@@ -100,6 +163,15 @@ def phan_tich_chuyen_gia_3_mon(ngay_check: date, ls: dict):
 
     s_move = 5.0 + (4.5 if chi_ngay in [get_dich_ma(ls["nam"]["chi"]), get_dich_ma(ls["ngay"]["chi"])] else 0)
     if frozenset({chi_ngay, ls["ngay"]["chi"]}) in LUC_XUNG: s_move -= 4.0
+    
+    # [BỔ SUNG] Điều chỉnh theo Dụng Thần
+    if ngay_hanh in dung_than:
+        s_trade += 2.0; s_study += 2.0; s_move += 2.0
+    else:
+        s_trade -= 1.5; s_study -= 1.0; s_move -= 1.5
+
+    # [BỔ SUNG] Điều chỉnh theo Vòng Trường Sinh
+    s_trade *= he_so_ts; s_study *= he_so_ts; s_move *= he_so_ts
     
     return {k: round(max(0, min(10, v)), 1) for k, v in {"trading": s_trade, "study": s_study, "move": s_move}.items()}
 
@@ -113,6 +185,26 @@ def phan_tich_ngay_sau(ngay_check: date, gio: int, sinh_info: dict):
     check_list = [("Ngày", tt_now["ngay"]["chi"], 1.5), ("Năm", tt_now["nam"]["chi"], 1.2)]
     targets = [("Nhật Chủ", ls["ngay"]["chi"], 8), ("Trụ Năm", ls["nam"]["chi"], 5)]
 
+    # [BỔ SUNG] Nạp Dụng Thần & Trường Sinh ngay từ đầu
+    dung_than, _ = xac_dinh_dung_than(ls)
+    ngay_hanh = NGU_HANH.get(tt_now["ngay"]["chi"])
+    ts_state = get_truong_sinh(nhat_chu_can, tt_now["ngay"]["chi"])
+    
+    if ngay_hanh in dung_than:
+        chi_tiet.append(f"✨ Hành {ngay_hanh} là DỤNG THẦN (Đỡ được hung hiểm)")
+        diem_hung -= 3.0
+    else:
+        chi_tiet.append(f"⚠️ Hành {ngay_hanh} là KỴ THẦN (Cẩn thận rủi ro)")
+        diem_hung += 2.0
+        
+    chi_tiet.append(f"🔋 Năng lượng: {ts_state}")
+    if ts_state in ["Tuyệt", "Tử", "Bệnh"]:
+        diem_hung += 3.0
+        chi_tiet.append(f"📉 Mệnh rơi vào cung {ts_state}, khí lực suy kiệt.")
+    elif ts_state in ["Đế Vượng", "Lâm Quan", "Trường Sinh"]:
+        diem_hung -= 2.0
+
+    # Vòng Xung gốc
     for n_now, c_now, p_coeff in check_list:
         for n_tar, c_tar, weight in targets:
             if frozenset({c_now, c_tar}) in LUC_XUNG:
@@ -133,7 +225,7 @@ def phan_tich_ngay_sau(ngay_check: date, gio: int, sinh_info: dict):
     return {"diem": round(diem_hung, 1), "muc": muc, "detail": chi_tiet, "is_dangerous": diem_hung >= 7}
 
 # ============================================================
-# DB & BOT HANDLERS [Phục hồi 100% văn phong gốc]
+# DB & BOT HANDLERS 
 # ============================================================
 DB_PATH = "daiky.db"
 def init_db():
@@ -209,8 +301,13 @@ async def cmd_hom_nay(u: Update, c: ContextTypes.DEFAULT_TYPE):
     info = get_data(u.effective_user.id)
     if not info: await u.message.reply_text("Mày chưa nhập thông tin! Gõ /nhapngaysinh đi đã."); return
     res = phan_tich_ngay_sau(date.today(), datetime.now().hour, info); exp = phan_tich_chuyen_gia_3_mon(date.today(), info["la_so"])
+    dung_than, than_loai = xac_dinh_dung_than(info["la_so"]) # [BỔ SUNG] In thêm thông tin Thân/Dụng Thần
     def bar(s): return "🟢" * int(s/2) + "⚪" * (5 - int(s/2))
-    txt = f"☀️ *KHÍ VẬN HIỆN TẠI:*\n━━━━━━━━━━\n📊 *Chỉ số năng lượng (Thang 10):*\n💰 Trading: {exp['trading']} {bar(exp['trading'])}\n📚 Học tập: {exp['study']} {bar(exp['study'])}\n🚗 Di chuyển: {exp['move']} {bar(exp['move'])}\n\n*Kết quả:* {res['muc']} ({res['diem']}đ)\n" + "\n".join(res['detail'])
+    
+    txt = f"☀️ *KHÍ VẬN HIỆN TẠI:*\n━━━━━━━━━━\n" \
+          f"👤 Thân {than_loai} - Dụng Thần: {', '.join(dung_than)}\n\n" \
+          f"📊 *Chỉ số (Thang 10):*\n💰 Trading: {exp['trading']} {bar(exp['trading'])}\n📚 Học tập: {exp['study']} {bar(exp['study'])}\n🚗 Di chuyển: {exp['move']} {bar(exp['move'])}\n\n" \
+          f"*Kết quả:* {res['muc']} ({res['diem']}đ)\n" + "\n".join(res['detail'])
     await u.message.reply_text(txt, parse_mode="Markdown")
 
 def main():
