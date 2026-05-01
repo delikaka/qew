@@ -360,30 +360,40 @@ def phan_tich_ngay(ngay_check: date, gio: int, sinh_info: dict) -> dict:
         ("Năm",   la_so["nam"]["can"],   la_so["nam"]["chi"]),
     ]
 
-    tru_xau_count = 0  # đếm số trụ xấu để kiểm tra "đồng phase"
+    tru_xau_count = 0  # đếm số trụ xấu TỐI ĐA 4 (mỗi trụ chỉ đếm 1 lần)
 
     for (ten_tru, can_c, chi_c) in tru_check_list:
+        tru_co_xau = False  # flag mỗi trụ
+
         # Thập Thần Can
         thap_than = tinh_thap_than(nhat_chu, can_c)
         is_can_xau = thap_than in THAP_THAN_XAU
         if is_can_xau:
             diem_xau += 2
             chi_tiet.append(f"  • {ten_tru} Can [{can_c}] = {thap_than} ⚠️")
-            tru_xau_count += 1
+            tru_co_xau = True
 
-        # Xung/Hại/Hình địa chi vs bản mệnh
+        # Xung/Hại/Hình địa chi: chỉ so với Ngày mệnh + Năm mệnh (tránh inflate điểm)
         for (ten_bm, _, chi_bm) in tru_ban_menh:
+            if ten_bm not in ("Ngày", "Năm"):
+                continue
+            if chi_c == chi_bm:
+                continue
             xungs = kiem_tra_xung_khi(chi_c, chi_bm)
             for x in xungs:
                 diem_xau += 3
                 chi_tiet.append(f"  • {ten_tru} Chi [{chi_c}] {x} {ten_bm} Mệnh [{chi_bm}] 🔥")
-                tru_xau_count += 1
+                tru_co_xau = True
 
         # Kiểm tra sao xấu trên địa chi trụ
         for sao, sao_chi in sao_xau.items():
             if chi_c == sao_chi:
                 diem_xau += 2
                 chi_tiet.append(f"  • {ten_tru} [{chi_c}] gặp sao {sao} 👿")
+                tru_co_xau = True
+
+        if tru_co_xau:
+            tru_xau_count += 1
 
     # Vượng/Suy ảnh hưởng
     if vuong_suy == "Tử":
@@ -444,7 +454,7 @@ def lay_ngay_dai_ky_trong_thang(nam: int, thang: int, sinh_info: dict) -> list:
     while current <= ngay_cuoi:
         gio_check = datetime.now().hour if current == date.today() else 12
         kt = phan_tich_ngay(current, gio_check, sinh_info)
-        if kt["diem_xau"] >= 2:  # lấy cả nhẹ để hiện đầy đủ
+        if kt["diem_xau"] >= 5:  # chỉ lấy ngày đáng chú ý trở lên
             ngay_xau.append({
                 "ngay": current,
                 "ket_qua": kt
@@ -775,43 +785,40 @@ async def cmd_ngay_dai_ky(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"✅ Tháng {thang_check}/{nam_check} không có ngày xấu đáng kể!")
         return
 
-    lines = [f"📅 *NGÀY ĐẠI KỴ THÁNG {thang_check}/{nam_check}*"]
-    lines.append("━━━━━━━━━━━━━━━━━━")
-
     hom_nay_str = hom_nay.isoformat()
+    lines = [f"📅 *Tháng {thang_check}*"]
+    lines.append("─────────────────")
+
     for item in ngay_xau_list:
         ng = item["ngay"]
         kt = item["ket_qua"]
-        marker = " 👈 HÔM NAY" if ng.isoformat() == hom_nay_str else ""
-        canh_bao = ""
-        days_until = (ng - hom_nay).days
-        if 0 < days_until <= 3:
-            canh_bao = f" ⚠️ CÒN {days_until} NGÀY"
+        chi_ngay = tinh_chi_ngay(ng)
 
-        dong_phase_str = ""
+        # Icon mức độ
+        if kt["dong_phase"] or kt["diem_xau"] >= 15:
+            icon = "🔴🔴"
+        elif kt["tru_xau_count"] >= 3 or kt["diem_xau"] >= 9:
+            icon = "🔴"
+        else:
+            icon = "⚠️"
+
+        # Marker hôm nay
+        marker = " ← Hôm nay" if ng.isoformat() == hom_nay_str else ""
+
+        # Đồng phase
+        phase_str = ""
         if kt["dong_phase"]:
-            dong_phase_str = "\n    🚨 ĐỒNG PHASE 4 KHUNG"
+            phase_str = " 🚨4K"
         elif kt["tru_xau_count"] >= 3:
-            dong_phase_str = "\n    ⚠️ ĐỒNG PHASE 3 KHUNG"
+            phase_str = " ⚠️3K"
 
-        lines.append(
-            f"\n📆 *{ng.strftime('%d/%m/%Y')}* ({ng.strftime('%A')}){marker}{canh_bao}\n"
-            f"   {kt['muc_do']} | Điểm: {kt['diem_xau']} | Trụ xấu: {kt['tru_xau_count']}/4\n"
-            f"   Tiết: {kt['tiet_khi']} | Nhật Chủ: {kt['vuong_suy']}{dong_phase_str}"
-        )
+        lines.append(f"{icon} *{ng.strftime('%d/%m/%Y')}* ({chi_ngay}){phase_str}{marker}")
 
-    lines.append("\n━━━━━━━━━━━━━━━━━━")
-    lines.append(f"📊 Tổng: {len(ngay_xau_list)} ngày cần chú ý")
-    lines.append("🔴 ≥15đ | 🟠 ≥9đ | 🟡 ≥5đ | 🟢 ≥2đ")
+    lines.append("─────────────────")
+    lines.append(f"Tổng {len(ngay_xau_list)} ngày | 🔴🔴 cực nặng · 🔴 nặng · ⚠️ vừa")
 
     text = "\n".join(lines)
-    # Chia nhỏ nếu quá dài
-    if len(text) > 4000:
-        chunks = [text[i:i+4000] for i in range(0, len(text), 4000)]
-        for chunk in chunks:
-            await update.message.reply_text(chunk, parse_mode="Markdown")
-    else:
-        await update.message.reply_text(text, parse_mode="Markdown")
+    await update.message.reply_text(text, parse_mode="Markdown")
 
 async def cmd_ngay_dai_ky_nam(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sinh_info = get_sinh_info(str(update.effective_user.id))
@@ -827,35 +834,38 @@ async def cmd_ngay_dai_ky_nam(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     await update.message.reply_text(f"⏳ Đang tính tổng quan năm {nam_check} (12 tháng)...")
 
-    lines = [f"📅 *TỔNG QUAN ĐẠI KỴ NĂM {nam_check}*"]
-    lines.append("━━━━━━━━━━━━━━━━━━")
-
-    tong_ngay_xau = 0
-    thang_nguy_hiem = []
+    hom_nay_check = date.today()
+    full_text = [f"📅 *NGÀY ĐẠI KỴ NĂM {nam_check}*\n"]
 
     for thang in range(1, 13):
         ngay_xau_list = lay_ngay_dai_ky_trong_thang(nam_check, thang, sinh_info)
-        ngay_nang = [x for x in ngay_xau_list if x["ket_qua"]["diem_xau"] >= 9]
-        ngay_cc = [x for x in ngay_xau_list if x["ket_qua"]["diem_xau"] >= 5]
-        ngay_dong = [x for x in ngay_xau_list if x["ket_qua"]["dong_phase"]]
-        tong_ngay_xau += len(ngay_xau_list)
+        if not ngay_xau_list:
+            continue
 
-        icon = "🔴" if ngay_nang else ("🟠" if ngay_cc else "🟢")
-        dong_str = f" 🚨×{len(ngay_dong)}" if ngay_dong else ""
-        lines.append(
-            f"{icon} Tháng {thang:02d}: {len(ngay_xau_list)} ngày xấu "
-            f"({len(ngay_nang)} nặng){dong_str}"
-        )
-        if ngay_nang:
-            thang_nguy_hiem.append(thang)
+        block = [f"📅 *Tháng {thang}*", "─────────────────"]
+        for item in ngay_xau_list:
+            ng = item["ngay"]
+            kt = item["ket_qua"]
+            chi_ngay = tinh_chi_ngay(ng)
+            marker = " ← Hôm nay" if ng == hom_nay_check else ""
+            if kt["dong_phase"] or kt["diem_xau"] >= 15:
+                icon = "🔴🔴"
+            elif kt["tru_xau_count"] >= 3 or kt["diem_xau"] >= 9:
+                icon = "🔴"
+            else:
+                icon = "⚠️"
+            phase_str = " 🚨4K" if kt["dong_phase"] else (" ⚠️3K" if kt["tru_xau_count"] >= 3 else "")
+            block.append(f"{icon} *{ng.strftime('%d/%m/%Y')}* ({chi_ngay}){phase_str}{marker}")
 
-    lines.append("\n━━━━━━━━━━━━━━━━━━")
-    lines.append(f"📊 Tổng: {tong_ngay_xau} ngày cần chú ý")
-    if thang_nguy_hiem:
-        lines.append(f"🔴 Tháng cần cảnh giác: {', '.join(str(t) for t in thang_nguy_hiem)}")
-    lines.append("\n_Dùng /ngaydaiky MM để xem chi tiết từng tháng_")
+        full_text.append("\n".join(block))
 
-    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+    if len(full_text) == 1:
+        await update.message.reply_text(f"✅ Năm {nam_check} không có ngày đại kỵ đáng kể!")
+        return
+
+    # Gửi từng tháng riêng (mỗi message 1 tháng, gọn như ảnh)
+    for block in full_text:
+        await update.message.reply_text(block, parse_mode="Markdown")
 
 async def cmd_canh_bao(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sinh_info = get_sinh_info(str(update.effective_user.id))
