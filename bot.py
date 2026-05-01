@@ -454,7 +454,7 @@ def lay_ngay_dai_ky_trong_thang(nam: int, thang: int, sinh_info: dict) -> list:
     while current <= ngay_cuoi:
         gio_check = datetime.now().hour if current == date.today() else 12
         kt = phan_tich_ngay(current, gio_check, sinh_info)
-        if kt["diem_xau"] >= 5:  # chỉ lấy ngày đáng chú ý trở lên
+        if kt["diem_xau"] >= 7:  # ngưỡng vừa+nặng (~5-10 ngày/tháng)
             ngay_xau.append({
                 "ngay": current,
                 "ket_qua": kt
@@ -793,29 +793,13 @@ async def cmd_ngay_dai_ky(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ng = item["ngay"]
         kt = item["ket_qua"]
         chi_ngay = tinh_chi_ngay(ng)
-
-        # Icon mức độ
-        if kt["dong_phase"] or kt["diem_xau"] >= 15:
-            icon = "🔴🔴"
-        elif kt["tru_xau_count"] >= 3 or kt["diem_xau"] >= 9:
-            icon = "🔴"
-        else:
-            icon = "⚠️"
-
-        # Marker hôm nay
         marker = " ← Hôm nay" if ng.isoformat() == hom_nay_str else ""
-
-        # Đồng phase
-        phase_str = ""
-        if kt["dong_phase"]:
-            phase_str = " 🚨4K"
-        elif kt["tru_xau_count"] >= 3:
-            phase_str = " ⚠️3K"
-
-        lines.append(f"{icon} *{ng.strftime('%d/%m/%Y')}* ({chi_ngay}){phase_str}{marker}")
+        # Chỉ đánh dấu đồng phase cực nặng, bỏ hết icon màu
+        phase_str = " ⚡" if kt["dong_phase"] or kt["tru_xau_count"] >= 3 else ""
+        lines.append(f"*{ng.strftime('%d/%m/%Y')}* ({chi_ngay}){phase_str}{marker}")
 
     lines.append("─────────────────")
-    lines.append(f"Tổng {len(ngay_xau_list)} ngày | 🔴🔴 cực nặng · 🔴 nặng · ⚠️ vừa")
+    lines.append(f"_{len(ngay_xau_list)} ngày | ⚡ = đồng phase mạnh_")
 
     text = "\n".join(lines)
     await update.message.reply_text(text, parse_mode="Markdown")
@@ -848,14 +832,8 @@ async def cmd_ngay_dai_ky_nam(update: Update, context: ContextTypes.DEFAULT_TYPE
             kt = item["ket_qua"]
             chi_ngay = tinh_chi_ngay(ng)
             marker = " ← Hôm nay" if ng == hom_nay_check else ""
-            if kt["dong_phase"] or kt["diem_xau"] >= 15:
-                icon = "🔴🔴"
-            elif kt["tru_xau_count"] >= 3 or kt["diem_xau"] >= 9:
-                icon = "🔴"
-            else:
-                icon = "⚠️"
-            phase_str = " 🚨4K" if kt["dong_phase"] else (" ⚠️3K" if kt["tru_xau_count"] >= 3 else "")
-            block.append(f"{icon} *{ng.strftime('%d/%m/%Y')}* ({chi_ngay}){phase_str}{marker}")
+            phase_str = " ⚡" if kt["dong_phase"] or kt["tru_xau_count"] >= 3 else ""
+            block.append(f"*{ng.strftime('%d/%m/%Y')}* ({chi_ngay}){phase_str}{marker}")
 
         full_text.append("\n".join(block))
 
