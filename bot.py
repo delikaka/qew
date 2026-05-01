@@ -16,7 +16,7 @@ logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # ============================================================
-# DỮ LIỆU HỆ THỐNG (NÂNG CẤP TOÁN HỌC)
+# TOÁN HỌC TỨ TRỤ NÂNG CAO (HỢP - XUNG - VƯỢNG - SUY)
 # ============================================================
 THIEN_CAN = ["Giáp", "Ất", "Bính", "Đinh", "Mậu", "Kỷ", "Canh", "Tân", "Nhâm", "Quý"]
 DIA_CHI   = ["Tý", "Sửu", "Dần", "Mão", "Thìn", "Tỵ", "Ngọ", "Mùi", "Thân", "Dậu", "Tuất", "Hợi"]
@@ -33,10 +33,11 @@ TUONG_KHAC = {"Mộc":"Thổ","Thổ":"Thủy","Thủy":"Hỏa","Hỏa":"Kim","K
 LUC_HOP = {frozenset({"Tý", "Sửu"}), frozenset({"Dần", "Hợi"}), frozenset({"Mão", "Tuất"}), frozenset({"Thìn", "Dậu"}), frozenset({"Tỵ", "Thân"}), frozenset({"Ngọ", "Mùi"})}
 LUC_XUNG = {frozenset({"Tý", "Ngọ"}), frozenset({"Sửu", "Mùi"}), frozenset({"Dần", "Thân"}), frozenset({"Mão", "Dậu"}), frozenset({"Thìn", "Tuất"}), frozenset({"Tỵ", "Hợi"})}
 
-# ============================================================
-# HÀM LOGIC CỐT LÕI (CORE MATH)
-# ============================================================
+# ------------------------------------------------------------
+# HÀM TÍNH TOÁN (LOGIC CHẶT CHẼ)
+# ------------------------------------------------------------
 def tinh_thap_than(nhat_chu, can_check):
+    if nhat_chu not in NGU_HANH or can_check not in NGU_HANH: return "N/A"
     nh_chu, nh_check = NGU_HANH[nhat_chu], NGU_HANH[can_check]
     cung_ad = (AM_DUONG_CAN[nhat_chu] == AM_DUONG_CAN[can_check])
     if nh_check == nh_chu: return "Kiếp Tài" if cung_ad else "Tỷ Kiên"
@@ -50,7 +51,9 @@ def get_tiet_khi(ngay: date):
     TK = [(1,6,"Tiểu Hàn"),(2,4,"Lập Xuân"),(3,6,"Kinh Trập"),(4,5,"Thanh Minh"),(5,6,"Lập Hạ"),(6,6,"Mang Chủng"),(7,7,"Tiểu Thử"),(8,7,"Lập Thu"),(9,8,"Bạch Lộ"),(10,8,"Hàn Lộ"),(11,7,"Lập Đông"),(12,7,"Đại Tuyết")]
     t, c = "Đông Chí", "Tý"
     for m, d, name in reversed(TK):
-        if ngay >= date(ngay.year, m, d): t = name; break
+        try:
+            if ngay >= date(ngay.year, m, d): t = name; break
+        except ValueError: continue
     MAP = {"Lập Xuân":"Dần","Kinh Trập":"Mão","Thanh Minh":"Thìn","Lập Hạ":"Tỵ","Mang Chủng":"Ngọ","Tiểu Thử":"Mùi","Lập Thu":"Thân","Bạch Lộ":"Dậu","Hàn Lộ":"Tuất","Lập Đông":"Hợi","Đại Tuyết":"Tý","Tiểu Hàn":"Sửu"}
     return t, MAP.get(t, "Dần")
 
@@ -77,6 +80,7 @@ def phan_tich_ngay_sau(ngay_check: date, gio: int, sinh_info: dict):
     tt_now = build_tu_tru(ngay_check.year, month_chi, ngay_check, gio)
     
     diem_hung = 0.0; chi_tiet = []
+    # Trọng số: Ngày (1.5), Năm (1.2). Mục tiêu: Nhật Chủ (8), Năm (5)
     check_list = [("Ngày", tt_now["ngay"]["chi"], 1.5), ("Năm", tt_now["nam"]["chi"], 1.2)]
     targets = [("Nhật Chủ", ls["ngay"]["chi"], 8), ("Trụ Năm", ls["nam"]["chi"], 5)]
 
@@ -84,9 +88,9 @@ def phan_tich_ngay_sau(ngay_check: date, gio: int, sinh_info: dict):
         for n_tar, c_tar, weight in targets:
             if frozenset({c_now, c_tar}) in LUC_XUNG:
                 current_score = weight * p_coeff * get_season_multiplier(month_chi, c_now)
+                # Giải xung bằng Lục Hợp[cite: 1]
                 is_saved = any(frozenset({c_now, other}) in LUC_HOP for _, other, _ in check_list if other != c_now)
                 if is_saved:
-                    current_score *= 0.3
                     chi_tiet.append(f"🛡️ {n_now} Xung {n_tar} nhưng có Hợp giải")
                 else:
                     diem_hung += current_score
@@ -94,7 +98,7 @@ def phan_tich_ngay_sau(ngay_check: date, gio: int, sinh_info: dict):
 
     tt_label = tinh_thap_than(nhat_chu_can, tt_now["ngay"]["can"])
     if tt_label == "Thất Sát":
-        diem_hung += 5; chi_tiet.append(f"⚔️ Gặp Thất Sát")
+        diem_hung += 5; chi_tiet.append(f"⚔️ Thiên Can phạm Thất Sát")
 
     if diem_hung >= 12: muc = "🔴 CỰC NẶNG"
     elif diem_hung >= 7: muc = "🟠 RẤT NẶNG"
@@ -103,7 +107,7 @@ def phan_tich_ngay_sau(ngay_check: date, gio: int, sinh_info: dict):
     return {"diem": round(diem_hung, 1), "muc": muc, "detail": chi_tiet, "is_dangerous": diem_hung >= 7}
 
 # ============================================================
-# DB & TELEGRAM HANDLERS
+# DB & BOT HANDLERS
 # ============================================================
 DB_PATH = "daiky.db"
 def init_db():
@@ -116,70 +120,80 @@ NHAP_N, NHAP_T, NHAP_D, NHAP_G = range(4)
 
 async def cmd_start(u: Update, c: ContextTypes.DEFAULT_TYPE):
     info = get_data(u.effective_user.id)
-    txt = "🌟 *BOT ĐẠI KỴ - PHIÊN BẢN CỰC CHUẨN*\n\n"
-    txt += "📜 *DANH SÁCH LỆNH:*\n"
-    txt += "/nhapngaysinh - Cài đặt lại lá số\n"
-    txt += "/ngaydaiky - Xem ngày xung trong tháng\n"
-    txt += "/canhbao - Quét chi tiết 30 ngày tới\n"
-    txt += "/homnay - So khí vận giờ hiện tại"
+    txt = "🌟 *BOT ĐẠI KỴ - MA TRẬN TỨ TRỤ*\n\n"
+    txt += "📜 *MENU LỆNH:*\n"
+    txt += "• /nhapngaysinh - Thiết lập lá số\n"
+    txt += "• /ngaydaiky - Danh sách ngày xấu tháng này\n"
+    txt += "• /canhbao - Quét chi tiết 30 ngày tới\n"
+    txt += "• /homnay - Khí vận giờ hiện tại"
     await u.message.reply_text(txt, parse_mode="Markdown")
 
+# ------------------------------------------------------------
+# LUỒNG NHẬP DATA (ĐÃ FIX LỖI NHẢY STEP)
+# ------------------------------------------------------------
 async def nhap_start(u: Update, c: ContextTypes.DEFAULT_TYPE):
-    await u.message.reply_text("Nhập NĂM SINH (vd: 1995):"); return NHAP_N
+    await u.message.reply_text("Nhập NĂM SINH (vd: 1990):"); return NHAP_N
 async def nhap_n(u: Update, c: ContextTypes.DEFAULT_TYPE):
-    c.user_data["n"] = int(u.message.text); await u.message.reply_text("Nhập THÁNG SINH (1-12):"); return NHAP_T
+    try:
+        c.user_data["n"] = int(u.message.text)
+        await u.message.reply_text("Nhập THÁNG SINH (1-12):"); return NHAP_T
+    except: await u.message.reply_text("Nhập số hộ tao cái!"); return NHAP_N
 async def nhap_t(u: Update, c: ContextTypes.DEFAULT_TYPE):
-    c.user_data["t"] = int(u.message.text); await u.message.reply_text("Nhập NGÀY SINH (1-31):"); return NHAP_D
+    val = int(u.message.text)
+    if 1 <= val <= 12:
+        c.user_data["t"] = val; await u.message.reply_text("Nhập NGÀY SINH (1-31):"); return NHAP_D
+    await u.message.reply_text("Tháng gì lạ vậy? Nhập lại (1-12):"); return NHAP_T
 async def nhap_d(u: Update, c: ContextTypes.DEFAULT_TYPE):
     c.user_data["d"] = int(u.message.text); await u.message.reply_text("Nhập GIỜ SINH (0-23):"); return NHAP_G
 async def nhap_g(u: Update, c: ContextTypes.DEFAULT_TYPE):
-    g = int(u.message.text); n, t, d = c.user_data["n"], c.user_data["t"], c.user_data["d"]
-    _, tc = get_tiet_khi(date(n,t,d)); ls = build_tu_tru(n, tc, date(n,t,d), g)
-    data = {"n":n,"t":t,"d":d,"g":g,"la_so":ls}
-    conn = sqlite3.connect(DB_PATH); conn.execute("INSERT OR REPLACE INTO users VALUES (?,?)", (str(u.effective_user.id), json.dumps(data))); conn.commit(); conn.close()
-    await u.message.reply_text("✅ Đã cập nhật lá số! Dùng /ngaydaiky để check."); return ConversationHandler.END
+    try:
+        g = int(u.message.text); n, t, d = c.user_data["n"], c.user_data["t"], c.user_data["d"]
+        _, tc = get_tiet_khi(date(n,t,d)); ls = build_tu_tru(n, tc, date(n,t,d), g)
+        data = {"n":n,"t":t,"d":d,"g":g,"la_so":ls}
+        conn = sqlite3.connect(DB_PATH); conn.execute("INSERT OR REPLACE INTO users VALUES (?,?)", (str(u.effective_user.id), json.dumps(data))); conn.commit(); conn.close()
+        await u.message.reply_text("✅ Xong! Giờ gõ /canhbao để xem hạn nhé."); return ConversationHandler.END
+    except Exception as e:
+        await u.message.reply_text(f"Lỗi: {e}. Thử lại /nhapngaysinh"); return ConversationHandler.END
 
+# ------------------------------------------------------------
+# CÁC LỆNH HIỂN THỊ (ĐÃ RÀ SOÁT CẤU TRÚC)
+# ------------------------------------------------------------
 async def cmd_canh_bao(u: Update, c: ContextTypes.DEFAULT_TYPE):
     info = get_data(u.effective_user.id)
-    if not info: await u.message.reply_text("Dùng /nhapngaysinh trước!"); return
+    if not info: await u.message.reply_text("Nhập ngày sinh trước ông thần ơi!"); return
     today = date.today(); warns = []
     for i in range(1, 31):
-        d = today + timedelta(days=i); res = phan_tich_ngay_sau(d, 12, info)
-        if res["diem"] >= 7:
+        d = today + timedelta(days=i)
+        res = phan_tich_ngay_sau(d, 12, info)
+        if res["is_dangerous"]:
             warns.append(f"📅 *{d.strftime('%d/%m')}* ({res['diem']}đ): {res['muc']}\n   ↳ {', '.join(res['detail'])}")
-    msg = "⚠️ *QUÉT HẠN 30 NGÀY TỚI*\n━━━━━━━━━━━━━━\n\n" + ("\n\n".join(warns) if warns else "✅ Mọi sự bình an.")
+    msg = "⚠️ *QUÉT 30 NGÀY TỚI*\n━━━━━━━━━━━━━━\n\n" + ("\n\n".join(warns) if warns else "✅ Mọi sự bình an, không thấy hạn nặng.")
     await u.message.reply_text(msg, parse_mode="Markdown")
 
-# LỆNH MÀY ĐANG TÌM ĐÂY
 async def cmd_ngay_dai_ky(u: Update, c: ContextTypes.DEFAULT_TYPE):
     info = get_data(u.effective_user.id)
-    if not info: await u.message.reply_text("Dùng /nhapngaysinh trước!"); return
-    
-    m = int(c.args[0]) if c.args else date.today().month
+    if not info: return
+    m = int(c.args[0]) if c.args and c.args[0].isdigit() else date.today().month
     y = date.today().year
-    msg = [f"📅 *DANH SÁCH NGÀY ĐẠI KỴ THÁNG {m}/{y}*\n━━━━━━━━━━━━━━"]
-    
-    curr = date(y, m, 1)
-    found = False
+    msg = [f"📅 *NGÀY XUNG THÁNG {m}/{y}*\n━━━━━━━━━━━━━━"]
+    curr = date(y, m, 1); found = False
     while curr.month == m:
         res = phan_tich_ngay_sau(curr, 12, info)
         if res["is_dangerous"]:
-            msg.append(f"• *{curr.strftime('%d/%m')}*: {res['muc']} ({res['diem']}đ)")
-            found = True
+            msg.append(f"• *{curr.strftime('%d/%m')}*: {res['muc']} ({res['diem']}đ)"); found = True
         curr += timedelta(days=1)
-    
-    if not found: msg.append("✅ Tháng này không có ngày xung nặng.")
+    if not found: msg.append("✅ Không có ngày xung nặng.")
     await u.message.reply_text("\n".join(msg), parse_mode="Markdown")
 
 async def cmd_hom_nay(u: Update, c: ContextTypes.DEFAULT_TYPE):
     info = get_data(u.effective_user.id)
     if not info: return
     res = phan_tich_ngay_sau(date.today(), datetime.now().hour, info)
-    txt = f"☀️ *KHÍ VẬN GIỜ HIỆN TẠI:*\n*Mức độ:* {res['muc']} ({res['diem']}đ)\n" + "\n".join(res['detail'])
+    txt = f"☀️ *KHÍ VẬN HIỆN TẠI:*\n━━━━━━━━━━\n*Kết quả:* {res['muc']} ({res['diem']}đ)\n" + "\n".join(res['detail'])
     await u.message.reply_text(txt, parse_mode="Markdown")
 
 def main():
-    if not BOT_TOKEN: raise ValueError("Thiếu BOT_TOKEN!")
+    if not BOT_TOKEN: return
     init_db()
     app = Application.builder().token(BOT_TOKEN).build()
     
