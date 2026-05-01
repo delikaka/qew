@@ -16,7 +16,7 @@ logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # ============================================================
-# TOÁN HỌC TỨ TRỤ NÂNG CAO
+# TOÁN HỌC TỨ TRỤ CHUYÊN SÂU (ENGINE 2.0)
 # ============================================================
 THIEN_CAN = ["Giáp", "Ất", "Bính", "Đinh", "Mậu", "Kỷ", "Canh", "Tân", "Nhâm", "Quý"]
 DIA_CHI   = ["Tý", "Sửu", "Dần", "Mão", "Thìn", "Tỵ", "Ngọ", "Mùi", "Thân", "Dậu", "Tuất", "Hợi"]
@@ -33,19 +33,61 @@ TUONG_KHAC = {"Mộc":"Thổ","Thổ":"Thủy","Thủy":"Hỏa","Hỏa":"Kim","K
 LUC_HOP = {frozenset({"Tý", "Sửu"}), frozenset({"Dần", "Hợi"}), frozenset({"Mão", "Tuất"}), frozenset({"Thìn", "Dậu"}), frozenset({"Tỵ", "Thân"}), frozenset({"Ngọ", "Mùi"})}
 LUC_XUNG = {frozenset({"Tý", "Ngọ"}), frozenset({"Sửu", "Mùi"}), frozenset({"Dần", "Thân"}), frozenset({"Mão", "Dậu"}), frozenset({"Thìn", "Tuất"}), frozenset({"Tỵ", "Hợi"})}
 
+# [MỚI] DỮ LIỆU TÀNG CAN
+TANG_CAN_DATA = {
+    "Tý": {"Quý": 100},
+    "Sửu": {"Kỷ": 60, "Quý": 30, "Tân": 10},
+    "Dần": {"Giáp": 60, "Bính": 30, "Mậu": 10},
+    "Mão": {"Ất": 100},
+    "Thìn": {"Mậu": 60, "Ất": 30, "Quý": 10},
+    "Tỵ": {"Bính": 60, "Canh": 30, "Mậu": 10},
+    "Ngọ": {"Đinh": 70, "Kỷ": 30},
+    "Mùi": {"Kỷ": 60, "Đinh": 30, "Ất": 10},
+    "Thân": {"Canh": 60, "Nhâm": 30, "Mậu": 10},
+    "Dậu": {"Tân": 100},
+    "Tuất": {"Mậu": 60, "Tân": 30, "Đinh": 10},
+    "Hợi": {"Nhâm": 70, "Giáp": 30}
+}
+
+# [MỚI] BẢNG VUÔNG SUY THEO THÁNG (Lệnh Tháng)
+VUONG_SUY_MATRIX = {
+    "Mộc": {"Dần": 1.5, "Mão": 1.5, "Thìn": 1.2, "Tỵ": 0.3, "Ngọ": 0.3, "Mùi": 0.5, "Thân": 0.3, "Dậu": 0.3, "Tuất": 0.5, "Hợi": 1.2, "Tý": 1.2, "Sửu": 0.5},
+    "Hỏa": {"Dần": 1.2, "Mão": 1.2, "Thìn": 0.5, "Tỵ": 1.5, "Ngọ": 1.5, "Mùi": 1.2, "Thân": 0.3, "Dậu": 0.3, "Tuất": 0.5, "Hợi": 0.3, "Tý": 0.3, "Sửu": 0.5},
+    "Thổ": {"Dần": 0.5, "Mão": 0.5, "Thìn": 1.5, "Tỵ": 1.2, "Ngọ": 1.2, "Mùi": 1.5, "Thân": 0.8, "Dậu": 0.8, "Tuất": 1.5, "Hợi": 0.5, "Tý": 0.5, "Sửu": 1.5},
+    "Kim": {"Dần": 0.3, "Mão": 0.3, "Thìn": 0.8, "Tỵ": 0.5, "Ngọ": 0.5, "Mùi": 0.8, "Thân": 1.5, "Dậu": 1.5, "Tuất": 1.2, "Hợi": 0.8, "Tý": 0.8, "Sửu": 1.2},
+    "Thủy": {"Dần": 0.3, "Mão": 0.3, "Thìn": 0.5, "Tỵ": 0.3, "Ngọ": 0.3, "Mùi": 0.5, "Thân": 1.2, "Dậu": 1.2, "Tuất": 0.5, "Hợi": 1.5, "Tý": 1.5, "Sửu": 1.2}
+}
+
 # ------------------------------------------------------------
-# HÀM TÍNH TOÁN
+# HÀM TÍNH TOÁN NÂNG CAO
 # ------------------------------------------------------------
-def tinh_thap_than(nhat_chu, can_check):
-    if nhat_chu not in NGU_HANH or can_check not in NGU_HANH: return "N/A"
-    nh_chu, nh_check = NGU_HANH[nhat_chu], NGU_HANH[can_check]
-    cung_ad = (AM_DUONG_CAN[nhat_chu] == AM_DUONG_CAN[can_check])
-    if nh_check == nh_chu: return "Kiếp Tài" if cung_ad else "Tỷ Kiên"
-    if TUONG_SINH.get(nh_check) == nh_chu: return "Thiên Ấn" if cung_ad else "Chính Ấn"
-    if TUONG_SINH.get(nh_chu) == nh_check: return "Thực Thần" if cung_ad else "Thương Quan"
-    if TUONG_KHAC.get(nh_chu) == nh_check: return "Thiên Tài" if cung_ad else "Chính Tài"
-    if TUONG_KHAC.get(nh_check) == nh_chu: return "Thất Sát" if cung_ad else "Chính Quan"
-    return "N/A"
+
+def tinh_do_vuong_than(ls):
+    """Xác định Thân Vượng hay Thân Nhược để điều chỉnh hệ số rủi ro"""
+    month_chi = ls["thang"]["chi"]
+    nhat_chu_can = ls["ngay"]["can"]
+    nhat_chu_nh = NGU_HANH[nhat_chu_can]
+    score = 10.0 # Gốc Nhật Chủ
+    
+    # Quét 8 chữ (4 trụ) để tính điểm ngũ hành
+    check_items = [
+        ("C", ls["nam"]["can"]), ("C", ls["ngay"]["can"]), ("C", ls["gio"]["can"]),
+        ("D", ls["nam"]["chi"]), ("D", ls["ngay"]["chi"]), ("D", ls["thang"]["chi"]), ("D", ls["gio"]["chi"])
+    ]
+    
+    for type, val in check_items:
+        if type == "C": # Thiên Can
+            item_nh = NGU_HANH[val]
+            mult = VUONG_SUY_MATRIX[nhat_chu_nh].get(month_chi, 1.0)
+            if item_nh == nhat_chu_nh: score += 5 * mult
+            elif TUONG_SINH[item_nh] == nhat_chu_nh: score += 3 * mult
+        else: # Địa Chi (Soi tàng can bên trong)
+            for can_an, ty_le in TANG_CAN_DATA.get(val, {}).items():
+                can_an_nh = NGU_HANH[can_an]
+                mult = VUONG_SUY_MATRIX[nhat_chu_nh].get(month_chi, 1.0)
+                if can_an_nh == nhat_chu_nh: score += (ty_le/10) * mult
+    
+    return "Vượng" if score > 35 else "Nhược"
 
 def get_tiet_khi(ngay: date):
     TK = [(1,6,"Tiểu Hàn"),(2,4,"Lập Xuân"),(3,6,"Kinh Trập"),(4,5,"Thanh Minh"),(5,6,"Lập Hạ"),(6,6,"Mang Chủng"),(7,7,"Tiểu Thử"),(8,7,"Lập Thu"),(9,8,"Bạch Lộ"),(10,8,"Hàn Lộ"),(11,7,"Lập Đông"),(12,7,"Đại Tuyết")]
@@ -55,7 +97,7 @@ def get_tiet_khi(ngay: date):
             if ngay >= date(ngay.year, m, d): t = name; break
         except ValueError: continue
     MAP = {"Lập Xuân":"Dần","Kinh Trập":"Mão","Thanh Minh":"Thìn","Lập Hạ":"Tỵ","Mang Chủng":"Ngọ","Tiểu Thử":"Mùi","Lập Thu":"Thân","Bạch Lộ":"Dậu","Hàn Lộ":"Tuất","Lập Đông":"Hợi","Đại Tuyết":"Tý","Tiểu Hàn":"Sửu"}
-    return t, MAP.get(t, "Tý") # Fix default to Tý
+    return t, MAP.get(t, "Tý")
 
 def build_tu_tru(nam, tc, ngay, gio):
     cn = THIEN_CAN[(nam-4)%10]; chin = DIA_CHI[(nam-4)%12]
@@ -65,51 +107,61 @@ def build_tu_tru(nam, tc, ngay, gio):
     start_can_gio = (idx_ngay % 5) * 2
     idx_gio = (gio + 1) // 2
     cg = THIEN_CAN[(start_can_gio + idx_gio) % 10]; chig = DIA_CHI[idx_gio % 12]
-    return {"nam":{"can":cn,"chi":chin},"ngay":{"can":cng,"chi":ching},"thang":{"chi":tc},"gio":{"can":cg,"chi":chig},"nhat_chu":cng}
-
-def get_season_multiplier(month_chi, day_chi):
-    day_nh = NGU_HANH.get(day_chi)
-    seasons = {"Mộc":["Dần","Mão","Thìn"],"Hỏa":["Tỵ","Ngọ","Mùi"],"Kim":["Thân","Dậu","Tuất"],"Thủy":["Hợi","Tý","Sửu"]}
-    vuong_element = next((k for k, v in seasons.items() if month_chi in v), None)
-    return 1.3 if day_nh == vuong_element else 1.0
+    return {"nam":{"can":cn,"chi":chin},"ngay":{"can":cng,"chi":ching},"thang":{"chi":tc},"gio":{"can":cg,"chi":chig}, "nhat_chu":cng}
 
 def phan_tich_ngay_sau(ngay_check: date, gio: int, sinh_info: dict):
     ls = sinh_info["la_so"]
-    nhat_chu_can = ls["nhat_chu"]
+    # 1. Tính độ vượng Thân chủ
+    nhat_chu_status = tinh_do_vuong_than(ls)
+    nhat_chu_nh = NGU_HANH[ls["ngay"]["can"]]
+    
     _, month_chi = get_tiet_khi(ngay_check)
     tt_now = build_tu_tru(ngay_check.year, month_chi, ngay_check, gio)
     
     diem_hung = 0.0; chi_tiet = []
+    
+    # 2. Xử lý Lục Xung với hệ số Thân Vượng/Nhược
     check_list = [("Ngày", tt_now["ngay"]["chi"], 1.5), ("Năm", tt_now["nam"]["chi"], 1.2)]
     targets = [("Nhật Chủ", ls["ngay"]["chi"], 8), ("Trụ Năm", ls["nam"]["chi"], 5)]
 
     for n_now, c_now, p_coeff in check_list:
         for n_tar, c_tar, weight in targets:
             if frozenset({c_now, c_tar}) in LUC_XUNG:
-                current_score = weight * p_coeff * get_season_multiplier(month_chi, c_now)
-                is_saved = any(frozenset({c_now, other}) in LUC_HOP for _, other, _ in check_list if other != c_now)
-                if is_saved:
+                # Nếu Thân nhược gặp xung thì nguy hiểm hơn (x1.5)
+                status_mult = 1.5 if nhat_chu_status == "Nhược" else 1.0
+                # Hệ số mùa vụ
+                season_mult = 1.3 if NGU_HANH[c_now] == next((k for k, v in {"Mộc":["Dần","Mão"],"Hỏa":["Tỵ","Ngọ"],"Kim":["Thân","Dậu"],"Thủy":["Hợi","Tý"]}.items() if month_chi in v), None) else 1.0
+                
+                current_score = weight * p_coeff * status_mult * season_mult
+                
+                # Check Hợp giải
+                if any(frozenset({c_now, other}) in LUC_HOP for _, other, _ in check_list if other != c_now):
                     chi_tiet.append(f"🛡️ {n_now} Xung {n_tar} nhưng có Hợp giải")
+                    diem_hung += (current_score * 0.3)
                 else:
                     diem_hung += current_score
-                    chi_tiet.append(f"🔥 {n_now} Xung {n_tar} ({c_now}-{c_tar})")
+                    chi_tiet.append(f"🔥 {n_now} Xung {n_tar} ({nhat_chu_status})")
 
-    tt_label = tinh_thap_than(nhat_chu_can, tt_now["ngay"]["can"])
-    if tt_label == "Thất Sát":
-        diem_hung += 5; chi_tiet.append(f"⚔️ Thiên Can phạm Thất Sát")
+    # 3. Soi Can ẩn (Tàng can) của ngày khắc Thân
+    for can_an, _ in TANG_CAN_DATA.get(tt_now["ngay"]["chi"], {}).items():
+        if TUONG_KHAC[NGU_HANH[can_an]] == nhat_chu_nh:
+            diem_hung += 2.5
+            chi_tiet.append(f"🐜 Can ẩn {can_an} khắc Nhật Chủ")
 
     if diem_hung >= 12: muc = "🔴 CỰC NẶNG"
     elif diem_hung >= 7: muc = "🟠 RẤT NẶNG"
     elif diem_hung >= 3: muc = "🟡 TRUNG BÌNH"
     else: muc = "✅ BÌNH THƯỜNG"
+    
     return {"diem": round(diem_hung, 1), "muc": muc, "detail": chi_tiet, "is_dangerous": diem_hung >= 7}
 
 # ============================================================
-# DB & BOT HANDLERS
+# DB & BOT HANDLERS (GIỮ NGUYÊN PHẦN GIAO DIỆN CỦA BẠN)
 # ============================================================
 DB_PATH = "daiky.db"
 def init_db():
     conn = sqlite3.connect(DB_PATH); conn.execute("CREATE TABLE IF NOT EXISTS users (user_id TEXT PRIMARY KEY, data TEXT)"); conn.commit(); conn.close()
+
 def get_data(uid):
     conn = sqlite3.connect(DB_PATH); r = conn.execute("SELECT data FROM users WHERE user_id=?", (str(uid),)).fetchone(); conn.close()
     return json.loads(r[0]) if r else None
@@ -117,7 +169,8 @@ def get_data(uid):
 NHAP_N, NHAP_T, NHAP_D, NHAP_G = range(4)
 
 async def cmd_start(u: Update, c: ContextTypes.DEFAULT_TYPE):
-    txt = "🌟 *BOT ĐẠI KỴ - MA TRẬN TỨ TRỤ*\n\n"
+    txt = "🌟 *BOT ĐẠI KỴ 2.0 - ENGINE NÂNG CAO*\n\n"
+    txt += "Đã tích hợp: Tàng can, Lệnh tháng, Thân Vượng/Nhược.\n\n"
     txt += "📜 *MENU LỆNH:*\n"
     txt += "• /nhapngaysinh - Thiết lập lá số\n"
     txt += "• /ngaydaiky - Danh sách ngày xấu tháng này\n"
@@ -125,9 +178,7 @@ async def cmd_start(u: Update, c: ContextTypes.DEFAULT_TYPE):
     txt += "• /homnay - Khí vận giờ hiện tại"
     await u.message.reply_text(txt, parse_mode="Markdown")
 
-# ------------------------------------------------------------
-# LUỒNG NHẬP DATA (ĐÃ FIX TOÀN BỘ LỖI CRASH/VALIDATION)
-# ------------------------------------------------------------
+# ... (Giữ nguyên các hàm nhap_n, nhap_t, nhap_d, nhap_g, nhap_start như cũ)
 async def nhap_start(u: Update, c: ContextTypes.DEFAULT_TYPE):
     await u.message.reply_text("Nhập NĂM SINH (vd: 1990):"); return NHAP_N
 
@@ -161,79 +212,61 @@ async def nhap_g(u: Update, c: ContextTypes.DEFAULT_TYPE):
         g = int(u.message.text)
         if not (0 <= g <= 23):
             await u.message.reply_text("Giờ sinh phải từ 0 đến 23. Nhập lại:"); return NHAP_G
-            
         n, t, d = c.user_data["n"], c.user_data["t"], c.user_data["d"]
-        
-        # Check xem ngày tháng năm đó có thực sự tồn tại không (chống lỗi 30/2)
         try:
             ngay_sinh = date(n, t, d)
         except ValueError:
-            await u.message.reply_text(f"❌ Lỗi: Ngày {d}/{t}/{n} không tồn tại trên lịch (chắc là tháng 2 hoặc tháng thiếu). Gõ /nhapngaysinh để làm lại!")
+            await u.message.reply_text(f"❌ Lỗi: Ngày {d}/{t}/{n} không tồn tại. Gõ /nhapngaysinh lại!")
             return ConversationHandler.END
-
         _, tc = get_tiet_khi(ngay_sinh)
         ls = build_tu_tru(n, tc, ngay_sinh, g)
         data = {"n":n,"t":t,"d":d,"g":g,"la_so":ls}
-        
         conn = sqlite3.connect(DB_PATH)
         conn.execute("INSERT OR REPLACE INTO users VALUES (?,?)", (str(u.effective_user.id), json.dumps(data)))
         conn.commit(); conn.close()
-        
-        await u.message.reply_text("✅ Xong! Cấu hình thành công. Giờ gõ /canhbao hoặc /ngaydaiky để xem hạn nhé.")
+        await u.message.reply_text("✅ Xong! Hệ thống đã tính toán xong Độ Vượng/Nhược và Tàng Can của mày.")
         return ConversationHandler.END
     except ValueError:
-        await u.message.reply_text("Lại gõ chữ à? Hãy nhập GIỜ bằng số (0-23):"); return NHAP_G
+        await u.message.reply_text("Nhập GIỜ bằng số (0-23):"); return NHAP_G
 
-# ------------------------------------------------------------
-# CÁC LỆNH HIỂN THỊ (ĐÃ FIX LỖI GHOSTING)
-# ------------------------------------------------------------
 async def cmd_canh_bao(u: Update, c: ContextTypes.DEFAULT_TYPE):
     info = get_data(u.effective_user.id)
-    if not info: await u.message.reply_text("Mày chưa nhập thông tin! Gõ /nhapngaysinh đi đã."); return
-    
+    if not info: await u.message.reply_text("Gõ /nhapngaysinh đi đã."); return
     today = date.today(); warns = []
     for i in range(1, 31):
         d = today + timedelta(days=i)
         res = phan_tich_ngay_sau(d, 12, info)
         if res["is_dangerous"]:
             warns.append(f"📅 *{d.strftime('%d/%m')}* ({res['diem']}đ): {res['muc']}\n   ↳ {', '.join(res['detail'])}")
-    msg = "⚠️ *QUÉT 30 NGÀY TỚI*\n━━━━━━━━━━━━━━\n\n" + ("\n\n".join(warns) if warns else "✅ Mọi sự bình an, không thấy hạn nặng.")
+    msg = "⚠️ *QUÉT 30 NGÀY TỚI*\n━━━━━━━━━━━━━━\n\n" + ("\n\n".join(warns) if warns else "✅ Mọi sự bình an.")
     await u.message.reply_text(msg, parse_mode="Markdown")
 
 async def cmd_ngay_dai_ky(u: Update, c: ContextTypes.DEFAULT_TYPE):
     info = get_data(u.effective_user.id)
-    if not info: await u.message.reply_text("Mày chưa nhập thông tin! Gõ /nhapngaysinh đi đã."); return
-    
+    if not info: await u.message.reply_text("Gõ /nhapngaysinh đi đã."); return
     m = int(c.args[0]) if c.args and c.args[0].isdigit() else date.today().month
     y = date.today().year
     msg = [f"📅 *NGÀY XUNG THÁNG {m}/{y}*\n━━━━━━━━━━━━━━"]
     curr = date(y, m, 1); found = False
-    
     while curr.month == m:
         res = phan_tich_ngay_sau(curr, 12, info)
         if res["is_dangerous"]:
             msg.append(f"• *{curr.strftime('%d/%m')}*: {res['muc']} ({res['diem']}đ)"); found = True
         curr += timedelta(days=1)
-        
     if not found: msg.append("✅ Không có ngày xung nặng.")
     await u.message.reply_text("\n".join(msg), parse_mode="Markdown")
 
 async def cmd_hom_nay(u: Update, c: ContextTypes.DEFAULT_TYPE):
     info = get_data(u.effective_user.id)
-    if not info: await u.message.reply_text("Mày chưa nhập thông tin! Gõ /nhapngaysinh đi đã."); return
-    
+    if not info: await u.message.reply_text("Gõ /nhapngaysinh đi đã."); return
     res = phan_tich_ngay_sau(date.today(), datetime.now().hour, info)
     txt = f"☀️ *KHÍ VẬN HIỆN TẠI:*\n━━━━━━━━━━\n*Kết quả:* {res['muc']} ({res['diem']}đ)\n" + "\n".join(res['detail'])
     await u.message.reply_text(txt, parse_mode="Markdown")
 
 def main():
-    if not BOT_TOKEN: 
-        print("LỖI: Chưa có BOT_TOKEN kìa ông thần!")
-        return
-        
+    if not BOT_TOKEN: return
     init_db()
     app = Application.builder().token(BOT_TOKEN).build()
-    
     conv = ConversationHandler(
         entry_points=[CommandHandler("nhapngaysinh", nhap_start)],
         states={
@@ -244,7 +277,6 @@ def main():
         },
         fallbacks=[CommandHandler("cancel", lambda u,c: ConversationHandler.END)],
     )
-    
     app.add_handler(conv)
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("canhbao", cmd_canh_bao))
