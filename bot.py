@@ -110,14 +110,14 @@ def build_tu_tru(nam, tc, ngay, gio):
     cng = THIEN_CAN[idx_can_ngay]
     ching = DIA_CHI[idx_chi_ngay]
 
-    # 4. Tính Trụ Tháng (Giữ nguyên logic Ngũ Hổ Độn mày đã fix)
+    # 4. Tính Trụ Tháng (Giữ nguyên logic Ngũ Hổ Độn mày đã fix)[cite: 5]
     cthang = get_can_thang(cn, tc) 
 
-    # 5. Tính Trụ Giờ (Chia 12 khung giờ chuẩn)[cite: 1, 2, 3]
+    # 5. Tính Trụ Giờ (Chia 12 khung giờ chuẩn)[cite: 1, 2, 3, 5]
     idx_gio = (gio + 1) // 2
     if idx_gio == 12: idx_gio = 0 # 23h-24h quay về giờ Tý (0)
     
-    # Ngũ Tý Độn tính Thiên Can giờ dựa trên Can ngày[cite: 1, 2, 3]
+    # Ngũ Tý Độn tính Thiên Can giờ dựa trên Can ngày[cite: 1, 2, 3, 5]
     start_can_gio_idx = (idx_can_ngay % 5) * 2
     cg = THIEN_CAN[(start_can_gio_idx + idx_gio) % 10]
     chig = DIA_CHI[idx_gio]
@@ -147,86 +147,41 @@ def get_dich_ma(chi):
     return ma_map.get(chi)
 
 # ------------------------------------------------------------
-# [NÂNG CẤP] THUẬT TOÁN ĐỊNH LƯỢNG & DỤNG THẦN (DECISION TREE)
+# [BỔ SUNG] THUẬT TOÁN TÌM DỤNG THẦN
 # ------------------------------------------------------------
-# Bảng trọng số năng lượng: Tổng điểm tối đa ~11.0
-TRONG_SO_NL = {
-    "can_nam": 1.0, "chi_nam": 1.5,
-    "can_thang": 1.0, "chi_thang": 3.5, # Lệnh tháng cực kỳ quan trọng
-    "can_ngay": 0.0, "chi_ngay": 1.5, # Can ngày là Nhật Chủ, không tự cộng điểm
-    "can_gio": 1.0, "chi_gio": 1.5
-}
-
-def dinh_luong_nang_luong(ls):
-    nc_hanh = NGU_HANH[ls["nhat_chu"]]
-    hanh_sinh_nc = next((k for k, v in TUONG_SINH.items() if v == nc_hanh), None)
-
-    diem_tuong_tro = 0.0 # Phe ta (Sinh, Phù)
-    diem_that_tho = 0.0  # Phe địch (Khắc, Tiết, Hao)
-
-    # Lấy ngũ hành của 8 chữ
-    cac_tru = {
-        "can_nam": NGU_HANH.get(ls["nam"]["can"]),
-        "chi_nam": NGU_HANH.get(ls["nam"]["chi"]),
-        "can_thang": NGU_HANH.get(ls["thang"]["can"]),
-        "chi_thang": NGU_HANH.get(ls["thang"]["chi"]),
-        "chi_ngay": NGU_HANH.get(ls["ngay"]["chi"]),
-        "can_gio": NGU_HANH.get(ls["gio"]["can"]),
-        "chi_gio": NGU_HANH.get(ls["gio"]["chi"])
-    }
-
-    # Theo dõi chi tiết từng hành để dùng cho cách cục đặc biệt
-    chi_tiet_hanh = {"Mộc": 0, "Hỏa": 0, "Thổ": 0, "Kim": 0, "Thủy": 0}
-
-    for vitri, hanh in cac_tru.items():
-        if hanh:
-            diem = TRONG_SO_NL[vitri]
-            chi_tiet_hanh[hanh] += diem
-            
-            # Nếu hành này sinh trợ Nhật Chủ (Cùng hành hoặc mẹ sinh con)
-            if hanh == nc_hanh or hanh == hanh_sinh_nc:
-                diem_tuong_tro += diem
-            else:
-                diem_that_tho += diem
-
-    return diem_tuong_tro, diem_that_tho, chi_tiet_hanh
-
 def xac_dinh_dung_than(ls):
     nc_hanh = NGU_HANH[ls["nhat_chu"]]
-    hanh_sinh_nc = next((k for k, v in TUONG_SINH.items() if v == nc_hanh), None) # Ấn
-    hanh_nc_sinh = TUONG_SINH.get(nc_hanh) # Thực Thương
-    hanh_khac_nc = next((k for k, v in TUONG_KHAC.items() if v == nc_hanh), None) # Quan Sát
-    hanh_nc_khac = TUONG_KHAC.get(nc_hanh) # Tài
+    diem_tuong_tro = 0
+    
+    # Gom các hành lộ diện trong lá số
+    cac_hanh = [
 
-    diem_tuong_tro, diem_that_tho, chi_tiet_hanh = dinh_luong_nang_luong(ls)
+        NGU_HANH.get(ls["nam"]["can"]), NGU_HANH.get(ls["nam"]["chi"]),
+        NGU_HANH.get(ls["thang"]["can"]), NGU_HANH.get(ls["thang"]["chi"]), # Thêm can tháng vào đây!
+        NGU_HANH.get(ls["ngay"]["can"]), NGU_HANH.get(ls["ngay"]["chi"]), # Bổ sung luôn cả can ngày nếu mày lỡ thiếu (nó chính là nhat_chu)
+        NGU_HANH.get(ls["gio"]["can"]), NGU_HANH.get(ls["gio"]["chi"])
 
-    # --------------------------------------------------------
-    # BƯỚC 1: XÉT CÁCH CỤC ĐẶC BIỆT (TÒNG CÁCH)
-    # --------------------------------------------------------
-    # Mệnh chủ quá yếu, không có rễ, không được sinh trợ -> Phải bỏ mình theo địch
-    if diem_tuong_tro <= 1.5:
-        hanh_manh_nhat = max(chi_tiet_hanh, key=chi_tiet_hanh.get)
-        # Tòng theo hành mạnh nhất, Dụng thần là chính nó và hành sinh ra nó
-        return [hanh_manh_nhat, TUONG_SINH.get(hanh_manh_nhat)], "Tòng Nhược (Đặc Biệt)"
-
-    # Mệnh chủ quá mạnh, phe địch bị tiêu diệt hoàn toàn -> Không thể khắc, chỉ có thể xì hơi
-    if diem_that_tho <= 1.5:
-        # Dụng thần là Thực Thương (Tiết khí) hoặc Tỷ Kiếp (Thuận thế)
-        return [hanh_nc_sinh, nc_hanh], "Tòng Cường (Đặc Biệt)"
-
-    # --------------------------------------------------------
-    # BƯỚC 2: XÉT CÁCH CỤC BÌNH THƯỜNG (PHÙ - C抑)
-    # --------------------------------------------------------
-    # Ngưỡng cân bằng khoảng 5.0 - 5.5 (do phe ta có lợi thế là bản thân Nhật chủ)
-    if diem_tuong_tro >= 5.5:
-        # Thân Vượng -> Cần Tiết/Hao/Khắc
-        # Loại bỏ các hành sinh trợ (Ấn, Tỷ Kiếp)
-        dung_than = [h for h in [hanh_nc_khac, hanh_nc_sinh, hanh_khac_nc] if h is not None]
-        return dung_than, "Vượng"
+    ]
+    
+    # Tính điểm Thân
+    for h in cac_hanh:
+        if h == nc_hanh or TUONG_SINH.get(h) == nc_hanh: 
+            diem_tuong_tro += 1
+            
+    # Thêm hệ số đắc lệnh tháng
+    if tinh_suc_manh_nhat_chu(ls) > 1.0: 
+        diem_tuong_tro += 1.5 
+        
+    than_vuong = diem_tuong_tro >= 3.5
+    
+    if than_vuong:
+        # Thân Vượng -> Cần Tiết/Hao/Khắc (Thực Thương, Tài, Quan)
+        dung_than = [k for k in ["Mộc","Hỏa","Thổ","Kim","Thủy"] if k != nc_hanh and TUONG_SINH.get(k) != nc_hanh]
     else:
-        # Thân Nhược -> Cần Sinh/Phù
-        dung_than = [h for h in [hanh_sinh_nc, nc_hanh] if h is not None]
-        return dung_than, "Nhược"
+        # Thân Nhược -> Cần Sinh/Phù (Ấn, Tỷ Kiếp)
+        dung_than = [nc_hanh, next(k for k,v in TUONG_SINH.items() if v == nc_hanh)]
+        
+    return dung_than, "Vượng" if than_vuong else "Nhược"
 
 # ------------------------------------------------------------
 # LOGIC CHUYÊN GIA (ĐÃ TÍCH HỢP TRƯỜNG SINH & DỤNG THẦN)
