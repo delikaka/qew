@@ -79,35 +79,45 @@ def get_tiet_khi(ngay: date):
     MAP = {"Lập Xuân":"Dần","Kinh Trập":"Mão","Thanh Minh":"Thìn","Lập Hạ":"Tỵ","Mang Chủng":"Ngọ","Tiểu Thử":"Mùi","Lập Thu":"Thân","Bạch Lộ":"Dậu","Hàn Lộ":"Tuất","Lập Đông":"Hợi","Đại Tuyết":"Tý","Tiểu Hàn":"Sửu"}
     return t, MAP.get(t, "Tý")
 
-NGU_HO_DUN = {0: 2, 1: 4, 2: 6, 3: 8, 4: 0}  
+# Ngũ Hổ Độn: Can năm → Can bắt đầu của tháng Dần (tháng 1 âm lịch)
+# Giáp/Kỷ → Bính Dần | Ất/Canh → Mậu Dần | Bính/Tân → Canh Dần | Đinh/Nhâm → Nhâm Dần | Mậu/Quý → Giáp Dần
+NGU_HO_DUN = {0: 2, 1: 4, 2: 6, 3: 8, 4: 0}  # (idx_can_nam % 5) → idx_can bắt đầu tháng Dần
 
 def get_can_thang(can_nam: str, chi_thang: str) -> str:
     idx_can_nam = THIEN_CAN.index(can_nam)
     idx_chi_thang = DIA_CHI.index(chi_thang)
+    # Tháng Dần = chi index 2, dùng làm gốc đếm
     start_can_idx = NGU_HO_DUN[idx_can_nam % 5]
     chi_offset = (idx_chi_thang - 2) % 12 
     can_thang_idx = (start_can_idx + chi_offset) % 10
     return THIEN_CAN[can_thang_idx]
 
 def build_tu_tru(nam, tc, ngay, gio):
+    # 1. XỬ LÝ NHẢY NGÀY (TỬ HUYỆT)
+    # Nếu sinh từ 23h, phong thủy tính là giờ Tý của ngày hôm sau
     ngay_tinh_nhat_chu = ngay
     if gio >= 23:
         ngay_tinh_nhat_chu = ngay + timedelta(days=1)
 
+    # 2. Tính Trụ Năm (Vẫn dùng năm gốc, trừ khi mày muốn fix vụ Lập Xuân)
     cn = THIEN_CAN[(nam - 4) % 10]
     chin = DIA_CHI[(nam - 4) % 12]
 
+    # 3. Tính Trụ Ngày (Dựa trên ngày đã được hiệu chỉnh nếu là giờ Tý)
     d_diff = (ngay_tinh_nhat_chu - date(1900, 1, 1)).days
     idx_can_ngay = (d_diff + 0) % 10  
     idx_chi_ngay = (d_diff + 10) % 12 
     cng = THIEN_CAN[idx_can_ngay]
     ching = DIA_CHI[idx_chi_ngay]
 
+    # 4. Tính Trụ Tháng (Giữ nguyên logic Ngũ Hổ Độn mày đã fix)
     cthang = get_can_thang(cn, tc) 
 
+    # 5. Tính Trụ Giờ (Chia 12 khung giờ chuẩn)[cite: 1, 2, 3]
     idx_gio = (gio + 1) // 2
-    if idx_gio == 12: idx_gio = 0 
+    if idx_gio == 12: idx_gio = 0 # 23h-24h quay về giờ Tý (0)
     
+    # Ngũ Tý Độn tính Thiên Can giờ dựa trên Can ngày[cite: 1, 2, 3]
     start_can_gio_idx = (idx_can_ngay % 5) * 2
     cg = THIEN_CAN[(start_can_gio_idx + idx_gio) % 10]
     chig = DIA_CHI[idx_gio]
@@ -139,10 +149,11 @@ def get_dich_ma(chi):
 # ------------------------------------------------------------
 # [NÂNG CẤP] THUẬT TOÁN ĐỊNH LƯỢNG & DỤNG THẦN (DECISION TREE)
 # ------------------------------------------------------------
+# Bảng trọng số năng lượng: Tổng điểm tối đa ~11.0
 TRONG_SO_NL = {
     "can_nam": 1.0, "chi_nam": 1.5,
-    "can_thang": 1.0, "chi_thang": 3.5, 
-    "can_ngay": 0.0, "chi_ngay": 1.5, 
+    "can_thang": 1.0, "chi_thang": 3.5, # Lệnh tháng cực kỳ quan trọng
+    "can_ngay": 0.0, "chi_ngay": 1.5, # Can ngày là Nhật Chủ, không tự cộng điểm
     "can_gio": 1.0, "chi_gio": 1.5
 }
 
@@ -150,9 +161,10 @@ def dinh_luong_nang_luong(ls):
     nc_hanh = NGU_HANH[ls["nhat_chu"]]
     hanh_sinh_nc = next((k for k, v in TUONG_SINH.items() if v == nc_hanh), None)
 
-    diem_tuong_tro = 0.0
-    diem_that_tho = 0.0
+    diem_tuong_tro = 0.0 # Phe ta (Sinh, Phù)
+    diem_that_tho = 0.0  # Phe địch (Khắc, Tiết, Hao)
 
+    # Lấy ngũ hành của 8 chữ
     cac_tru = {
         "can_nam": NGU_HANH.get(ls["nam"]["can"]),
         "chi_nam": NGU_HANH.get(ls["nam"]["chi"]),
@@ -163,6 +175,7 @@ def dinh_luong_nang_luong(ls):
         "chi_gio": NGU_HANH.get(ls["gio"]["chi"])
     }
 
+    # Theo dõi chi tiết từng hành để dùng cho cách cục đặc biệt
     chi_tiet_hanh = {"Mộc": 0, "Hỏa": 0, "Thổ": 0, "Kim": 0, "Thủy": 0}
 
     for vitri, hanh in cac_tru.items():
@@ -170,6 +183,7 @@ def dinh_luong_nang_luong(ls):
             diem = TRONG_SO_NL[vitri]
             chi_tiet_hanh[hanh] += diem
             
+            # Nếu hành này sinh trợ Nhật Chủ (Cùng hành hoặc mẹ sinh con)
             if hanh == nc_hanh or hanh == hanh_sinh_nc:
                 diem_tuong_tro += diem
             else:
@@ -179,24 +193,38 @@ def dinh_luong_nang_luong(ls):
 
 def xac_dinh_dung_than(ls):
     nc_hanh = NGU_HANH[ls["nhat_chu"]]
-    hanh_sinh_nc = next((k for k, v in TUONG_SINH.items() if v == nc_hanh), None) 
-    hanh_nc_sinh = TUONG_SINH.get(nc_hanh) 
-    hanh_khac_nc = next((k for k, v in TUONG_KHAC.items() if v == nc_hanh), None) 
-    hanh_nc_khac = TUONG_KHAC.get(nc_hanh) 
+    hanh_sinh_nc = next((k for k, v in TUONG_SINH.items() if v == nc_hanh), None) # Ấn
+    hanh_nc_sinh = TUONG_SINH.get(nc_hanh) # Thực Thương
+    hanh_khac_nc = next((k for k, v in TUONG_KHAC.items() if v == nc_hanh), None) # Quan Sát
+    hanh_nc_khac = TUONG_KHAC.get(nc_hanh) # Tài
 
     diem_tuong_tro, diem_that_tho, chi_tiet_hanh = dinh_luong_nang_luong(ls)
 
+    # --------------------------------------------------------
+    # BƯỚC 1: XÉT CÁCH CỤC ĐẶC BIỆT (TÒNG CÁCH)
+    # --------------------------------------------------------
+    # Mệnh chủ quá yếu, không có rễ, không được sinh trợ -> Phải bỏ mình theo địch
     if diem_tuong_tro <= 1.5:
         hanh_manh_nhat = max(chi_tiet_hanh, key=chi_tiet_hanh.get)
+        # Tòng theo hành mạnh nhất, Dụng thần là chính nó và hành sinh ra nó
         return [hanh_manh_nhat, TUONG_SINH.get(hanh_manh_nhat)], "Tòng Nhược (Đặc Biệt)"
 
+    # Mệnh chủ quá mạnh, phe địch bị tiêu diệt hoàn toàn -> Không thể khắc, chỉ có thể xì hơi
     if diem_that_tho <= 1.5:
+        # Dụng thần là Thực Thương (Tiết khí) hoặc Tỷ Kiếp (Thuận thế)
         return [hanh_nc_sinh, nc_hanh], "Tòng Cường (Đặc Biệt)"
 
+    # --------------------------------------------------------
+    # BƯỚC 2: XÉT CÁCH CỤC BÌNH THƯỜNG (PHÙ - C抑)
+    # --------------------------------------------------------
+    # Ngưỡng cân bằng khoảng 5.0 - 5.5 (do phe ta có lợi thế là bản thân Nhật chủ)
     if diem_tuong_tro >= 5.5:
+        # Thân Vượng -> Cần Tiết/Hao/Khắc
+        # Loại bỏ các hành sinh trợ (Ấn, Tỷ Kiếp)
         dung_than = [h for h in [hanh_nc_khac, hanh_nc_sinh, hanh_khac_nc] if h is not None]
         return dung_than, "Vượng"
     else:
+        # Thân Nhược -> Cần Sinh/Phù
         dung_than = [h for h in [hanh_sinh_nc, nc_hanh] if h is not None]
         return dung_than, "Nhược"
 
@@ -211,10 +239,12 @@ def phan_tich_chuyen_gia_3_mon(ngay_check: date, ls: dict):
     chi_ngay = tt_now["ngay"]["chi"]
     ngay_hanh = NGU_HANH.get(chi_ngay)
     
+    # [BỔ SUNG] Khởi tạo Dụng thần và Trường Sinh
     dung_than, _ = xac_dinh_dung_than(ls)
     ts_state = get_truong_sinh(ls["nhat_chu"], chi_ngay)
     he_so_ts = TS_HE_SO.get(ts_state, 1.0)
     
+    # Logic base cũ
     s_trade = 5.0 + (3.5 * suc_manh if thap_than in ["Thiên Tài", "Chính Tài"] else -3.0 if thap_than == "Kiếp Tài" else 0)
     if frozenset({chi_ngay, ls["ngay"]["chi"]}) in LUC_XUNG: s_trade -= 2.5
 
@@ -223,11 +253,13 @@ def phan_tich_chuyen_gia_3_mon(ngay_check: date, ls: dict):
     s_move = 5.0 + (4.5 if chi_ngay in [get_dich_ma(ls["nam"]["chi"]), get_dich_ma(ls["ngay"]["chi"])] else 0)
     if frozenset({chi_ngay, ls["ngay"]["chi"]}) in LUC_XUNG: s_move -= 4.0
     
+    # [BỔ SUNG] Điều chỉnh theo Dụng Thần
     if ngay_hanh in dung_than:
         s_trade += 2.0; s_study += 2.0; s_move += 2.0
     else:
         s_trade -= 1.5; s_study -= 1.0; s_move -= 1.5
 
+    # [BỔ SUNG] Điều chỉnh theo Vòng Trường Sinh
     s_trade *= he_so_ts; s_study *= he_so_ts; s_move *= he_so_ts
     
     return {k: round(max(0, min(10, v)), 1) for k, v in {"trading": s_trade, "study": s_study, "move": s_move}.items()}
@@ -242,6 +274,7 @@ def phan_tich_ngay_sau(ngay_check: date, gio: int, sinh_info: dict):
     check_list = [("Ngày", tt_now["ngay"]["chi"], 1.5), ("Năm", tt_now["nam"]["chi"], 1.2)]
     targets = [("Nhật Chủ", ls["ngay"]["chi"], 8), ("Trụ Năm", ls["nam"]["chi"], 5)]
 
+    # [BỔ SUNG] Nạp Dụng Thần & Trường Sinh ngay từ đầu
     dung_than, _ = xac_dinh_dung_than(ls)
     ngay_hanh = NGU_HANH.get(tt_now["ngay"]["chi"])
     ts_state = get_truong_sinh(nhat_chu_can, tt_now["ngay"]["chi"])
@@ -260,6 +293,7 @@ def phan_tich_ngay_sau(ngay_check: date, gio: int, sinh_info: dict):
     elif ts_state in ["Đế Vượng", "Lâm Quan", "Trường Sinh"]:
         diem_hung -= 2.0
 
+    # Vòng Xung gốc
     for n_now, c_now, p_coeff in check_list:
         for n_tar, c_tar, weight in targets:
             if frozenset({c_now, c_tar}) in LUC_XUNG:
@@ -356,7 +390,7 @@ async def cmd_hom_nay(u: Update, c: ContextTypes.DEFAULT_TYPE):
     info = get_data(u.effective_user.id)
     if not info: await u.message.reply_text("Mày chưa nhập thông tin! Gõ /nhapngaysinh đi đã."); return
     res = phan_tich_ngay_sau(date.today(), datetime.now().hour, info); exp = phan_tich_chuyen_gia_3_mon(date.today(), info["la_so"])
-    dung_than, than_loai = xac_dinh_dung_than(info["la_so"]) 
+    dung_than, than_loai = xac_dinh_dung_than(info["la_so"]) # [BỔ SUNG] In thêm thông tin Thân/Dụng Thần
     def bar(s): return "🟢" * int(s/2) + "⚪" * (5 - int(s/2))
     
     txt = f"☀️ *KHÍ VẬN HIỆN TẠI:*\n━━━━━━━━━━\n" \
