@@ -16,7 +16,7 @@ logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # ============================================================
-# TOÁN HỌC TỨ TRỤ NÂNG CAO
+# TOÁN HỌC TỨ TRỤ NÂNG CAO (CHUYÊN GIA)
 # ============================================================
 THIEN_CAN = ["Giáp", "Ất", "Bính", "Đinh", "Mậu", "Kỷ", "Canh", "Tân", "Nhâm", "Quý"]
 DIA_CHI   = ["Tý", "Sửu", "Dần", "Mão", "Thìn", "Tỵ", "Ngọ", "Mùi", "Thân", "Dậu", "Tuất", "Hợi"]
@@ -34,10 +34,9 @@ LUC_HOP = {frozenset({"Tý", "Sửu"}), frozenset({"Dần", "Hợi"}), frozenset
 LUC_XUNG = {frozenset({"Tý", "Ngọ"}), frozenset({"Sửu", "Mùi"}), frozenset({"Dần", "Thân"}), frozenset({"Mão", "Dậu"}), frozenset({"Thìn", "Tuất"}), frozenset({"Tỵ", "Hợi"})}
 
 # ------------------------------------------------------------
-# [BỔ SUNG] LÝ THUYẾT VÒNG TRƯỜNG SINH & HỆ SỐ NĂNG LƯỢNG
+# LÝ THUYẾT VÒNG TRƯỜNG SINH (GIỮ NGUYÊN)
 # ------------------------------------------------------------
 TRUONG_SINH_SEQ = ["Trường Sinh", "Mộc Dục", "Quan Đới", "Lâm Quan", "Đế Vượng", "Suy", "Bệnh", "Tử", "Mộ", "Tuyệt", "Thai", "Dưỡng"]
-# Map bắt đầu: Dương tiến (1), Âm lùi (-1)
 CAN_TS_START = {
     "Giáp":("Hợi", 1), "Ất":("Ngọ", -1), "Bính":("Dần", 1), "Đinh":("Dậu", -1), "Mậu":("Dần", 1), 
     "Kỷ":("Dậu", -1), "Canh":("Tỵ", 1), "Tân":("Tý", -1), "Nhâm":("Thân", 1), "Quý":("Mão", -1)
@@ -56,12 +55,13 @@ def get_truong_sinh(can, chi):
     return TRUONG_SINH_SEQ[dist % 12]
 
 # ------------------------------------------------------------
-# HÀM TÍNH TOÁN LOGIC GỐC
+# HÀM TÍNH TOÁN LOGIC (ĐÃ SỬA LỖI KIẾN THỨC)
 # ------------------------------------------------------------
 def tinh_thap_than(nhat_chu, can_check):
     if nhat_chu not in NGU_HANH or can_check not in NGU_HANH: return "N/A"
     nh_chu, nh_check = NGU_HANH[nhat_chu], NGU_HANH[can_check]
     cung_ad = (AM_DUONG_CAN[nhat_chu] == AM_DUONG_CAN[can_check])
+    # Đã sửa: Cùng Âm Dương là Tỷ Kiên, khác là Kiếp Tài[cite: 2]
     if nh_check == nh_chu: return "Tỷ Kiên" if cung_ad else "Kiếp Tài"
     if TUONG_SINH.get(nh_check) == nh_chu: return "Thiên Ấn" if cung_ad else "Chính Ấn"
     if TUONG_SINH.get(nh_chu) == nh_check: return "Thực Thần" if cung_ad else "Thương Quan"
@@ -120,6 +120,59 @@ def build_tu_tru(nam, tc, ngay, gio):
         "nhat_chu": cng
     }
 
+# ------------------------------------------------------------
+# THUẬT TOÁN ĐỊNH LƯỢNG NĂNG LƯỢNG (KHÔI PHỤC TỪ CL4)
+# ------------------------------------------------------------
+TRONG_SO_NL = {
+    "can_nam": 1.0, "chi_nam": 1.5,
+    "can_thang": 1.0, "chi_thang": 3.5, 
+    "can_ngay": 0.0, "chi_ngay": 1.5, 
+    "can_gio": 1.0, "chi_gio": 1.5
+}
+
+def dinh_luong_nang_luong(ls):
+    nc_hanh = NGU_HANH[ls["nhat_chu"]]
+    hanh_sinh_nc = next((k for k, v in TUONG_SINH.items() if v == nc_hanh), None)
+    diem_tuong_tro = 0.0; diem_that_tho = 0.0
+    cac_tru = {
+        "can_nam": NGU_HANH.get(ls["nam"]["can"]), "chi_nam": NGU_HANH.get(ls["nam"]["chi"]),
+        "can_thang": NGU_HANH.get(ls["thang"]["can"]), "chi_thang": NGU_HANH.get(ls["thang"]["chi"]),
+        "chi_ngay": NGU_HANH.get(ls["ngay"]["chi"]),
+        "can_gio": NGU_HANH.get(ls["gio"]["can"]), "chi_gio": NGU_HANH.get(ls["gio"]["chi"])
+    }
+    chi_tiet_hanh = {"Mộc": 0, "Hỏa": 0, "Thổ": 0, "Kim": 0, "Thủy": 0}
+    for vitri, hanh in cac_tru.items():
+        if hanh:
+            diem = TRONG_SO_NL[vitri]
+            chi_tiet_hanh[hanh] += diem
+            if hanh == nc_hanh or hanh == hanh_sinh_nc: diem_tuong_tro += diem
+            else: diem_that_tho += diem
+    return diem_tuong_tro, diem_that_tho, chi_tiet_hanh
+
+def xac_dinh_dung_than(ls):
+    nc_hanh = NGU_HANH[ls["nhat_chu"]]
+    hanh_sinh_nc = next((k for k, v in TUONG_SINH.items() if v == nc_hanh), None) 
+    hanh_nc_sinh = TUONG_SINH.get(nc_hanh) 
+    hanh_khac_nc = next((k for k, v in TUONG_KHAC.items() if v == nc_hanh), None) 
+    hanh_nc_khac = TUONG_KHAC.get(nc_hanh) 
+    diem_tuong_tro, diem_that_tho, chi_tiet_hanh = dinh_luong_nang_luong(ls)
+
+    # Thuật toán Decision Tree chuẩn từ cl4[cite: 2]
+    if diem_tuong_tro <= 1.5:
+        hanh_manh_nhat = max(chi_tiet_hanh, key=chi_tiet_hanh.get)
+        return [hanh_manh_nhat, TUONG_SINH.get(hanh_manh_nhat)], "Tòng Nhược (Đặc Biệt)"
+    if diem_that_tho <= 1.5:
+        return [hanh_nc_sinh, nc_hanh], "Tòng Cường (Đặc Biệt)"
+    if diem_tuong_tro >= 5.5:
+        dung_than = [h for h in [hanh_nc_khac, hanh_nc_sinh, hanh_khac_nc] if h is not None]
+        return dung_than, "Vượng"
+    else:
+        dung_than = [h for h in [hanh_sinh_nc, nc_hanh] if h is not None]
+        return dung_than, "Nhược"
+
+# ------------------------------------------------------------
+# LOGIC BÌNH GIẢI (HỢP NHẤT)
+# ------------------------------------------------------------
 def get_season_multiplier(month_chi, day_chi):
     day_nh = NGU_HANH.get(day_chi)
     seasons = {"Mộc":["Dần","Mão","Thìn"],"Hỏa":["Tỵ","Ngọ","Mùi"],"Kim":["Thân","Dậu","Tuất"],"Thủy":["Hợi","Tý","Sửu"]}
@@ -136,73 +189,6 @@ def get_dich_ma(chi):
     ma_map = {"Thân":"Dần","Tý":"Dần","Thìn":"Dần","Tỵ":"Hợi","Dậu":"Hợi","Sửu":"Hợi","Dần":"Thân","Ngọ":"Thân","Tuất":"Thân","Hợi":"Tỵ","Mão":"Tỵ","Mùi":"Tỵ"}
     return ma_map.get(chi)
 
-# ------------------------------------------------------------
-# [NÂNG CẤP] THUẬT TOÁN ĐỊNH LƯỢNG & DỤNG THẦN (DECISION TREE)
-# ------------------------------------------------------------
-TRONG_SO_NL = {
-    "can_nam": 1.0, "chi_nam": 1.5,
-    "can_thang": 1.0, "chi_thang": 3.5, 
-    "can_ngay": 0.0, "chi_ngay": 1.5, 
-    "can_gio": 1.0, "chi_gio": 1.5
-}
-
-def dinh_luong_nang_luong(ls):
-    nc_hanh = NGU_HANH[ls["nhat_chu"]]
-    hanh_sinh_nc = next((k for k, v in TUONG_SINH.items() if v == nc_hanh), None)
-
-    diem_tuong_tro = 0.0
-    diem_that_tho = 0.0
-
-    cac_tru = {
-        "can_nam": NGU_HANH.get(ls["nam"]["can"]),
-        "chi_nam": NGU_HANH.get(ls["nam"]["chi"]),
-        "can_thang": NGU_HANH.get(ls["thang"]["can"]),
-        "chi_thang": NGU_HANH.get(ls["thang"]["chi"]),
-        "chi_ngay": NGU_HANH.get(ls["ngay"]["chi"]),
-        "can_gio": NGU_HANH.get(ls["gio"]["can"]),
-        "chi_gio": NGU_HANH.get(ls["gio"]["chi"])
-    }
-
-    chi_tiet_hanh = {"Mộc": 0, "Hỏa": 0, "Thổ": 0, "Kim": 0, "Thủy": 0}
-
-    for vitri, hanh in cac_tru.items():
-        if hanh:
-            diem = TRONG_SO_NL[vitri]
-            chi_tiet_hanh[hanh] += diem
-            
-            if hanh == nc_hanh or hanh == hanh_sinh_nc:
-                diem_tuong_tro += diem
-            else:
-                diem_that_tho += diem
-
-    return diem_tuong_tro, diem_that_tho, chi_tiet_hanh
-
-def xac_dinh_dung_than(ls):
-    nc_hanh = NGU_HANH[ls["nhat_chu"]]
-    hanh_sinh_nc = next((k for k, v in TUONG_SINH.items() if v == nc_hanh), None) 
-    hanh_nc_sinh = TUONG_SINH.get(nc_hanh) 
-    hanh_khac_nc = next((k for k, v in TUONG_KHAC.items() if v == nc_hanh), None) 
-    hanh_nc_khac = TUONG_KHAC.get(nc_hanh) 
-
-    diem_tuong_tro, diem_that_tho, chi_tiet_hanh = dinh_luong_nang_luong(ls)
-
-    if diem_tuong_tro <= 1.5:
-        hanh_manh_nhat = max(chi_tiet_hanh, key=chi_tiet_hanh.get)
-        return [hanh_manh_nhat, TUONG_SINH.get(hanh_manh_nhat)], "Tòng Nhược (Đặc Biệt)"
-
-    if diem_that_tho <= 1.5:
-        return [hanh_nc_sinh, nc_hanh], "Tòng Cường (Đặc Biệt)"
-
-    if diem_tuong_tro >= 5.5:
-        dung_than = [h for h in [hanh_nc_khac, hanh_nc_sinh, hanh_khac_nc] if h is not None]
-        return dung_than, "Vượng"
-    else:
-        dung_than = [h for h in [hanh_sinh_nc, nc_hanh] if h is not None]
-        return dung_than, "Nhược"
-
-# ------------------------------------------------------------
-# LOGIC CHUYÊN GIA (ĐÃ TÍCH HỢP TRƯỜNG SINH & DỤNG THẦN)
-# ------------------------------------------------------------
 def phan_tich_chuyen_gia_3_mon(ngay_check: date, ls: dict):
     _, month_chi = get_tiet_khi(ngay_check)
     tt_now = build_tu_tru(ngay_check.year, month_chi, ngay_check, 12)
@@ -217,9 +203,7 @@ def phan_tich_chuyen_gia_3_mon(ngay_check: date, ls: dict):
     
     s_trade = 5.0 + (3.5 * suc_manh if thap_than in ["Thiên Tài", "Chính Tài"] else -3.0 if thap_than == "Kiếp Tài" else 0)
     if frozenset({chi_ngay, ls["ngay"]["chi"]}) in LUC_XUNG: s_trade -= 2.5
-
     s_study = 5.0 + (3.0 if thap_than in ["Chính Ấn", "Thiên Ấn"] else 0) + (1.0 if NGU_HANH[chi_ngay] in ["Thủy", "Mộc"] else 0)
-
     s_move = 5.0 + (4.5 if chi_ngay in [get_dich_ma(ls["nam"]["chi"]), get_dich_ma(ls["ngay"]["chi"])] else 0)
     if frozenset({chi_ngay, ls["ngay"]["chi"]}) in LUC_XUNG: s_move -= 4.0
     
@@ -229,7 +213,6 @@ def phan_tich_chuyen_gia_3_mon(ngay_check: date, ls: dict):
         s_trade -= 1.5; s_study -= 1.0; s_move -= 1.5
 
     s_trade *= he_so_ts; s_study *= he_so_ts; s_move *= he_so_ts
-    
     return {k: round(max(0, min(10, v)), 1) for k, v in {"trading": s_trade, "study": s_study, "move": s_move}.items()}
 
 def phan_tich_ngay_sau(ngay_check: date, gio: int, sinh_info: dict):
@@ -280,7 +263,7 @@ def phan_tich_ngay_sau(ngay_check: date, gio: int, sinh_info: dict):
     return {"diem": round(diem_hung, 1), "muc": muc, "detail": chi_tiet, "is_dangerous": diem_hung >= 7}
 
 # ============================================================
-# DB & BOT HANDLERS 
+# DB & BOT HANDLERS (GIỮ NGUYÊN TỪ CL5)
 # ============================================================
 DB_PATH = "daiky.db"
 def init_db():
@@ -325,24 +308,24 @@ async def nhap_g(u: Update, c: ContextTypes.DEFAULT_TYPE):
         try:
             ngay_sinh = date(n, t, d)
         except ValueError:
-            await u.message.reply_text(f"❌ Lỗi: Ngày {d}/{t}/{n} không tồn tại trên lịch (chắc là tháng 2 hoặc tháng thiếu). Gõ /nhapngaysinh để làm lại!"); return ConversationHandler.END
+            await u.message.reply_text(f"❌ Lỗi: Ngày {d}/{t}/{n} không tồn tại. Gõ /nhapngaysinh lại!"); return ConversationHandler.END
         _, tc = get_tiet_khi(ngay_sinh); ls = build_tu_tru(n, tc, ngay_sinh, g)
         conn = sqlite3.connect(DB_PATH); conn.execute("INSERT OR REPLACE INTO users VALUES (?,?)", (str(u.effective_user.id), json.dumps({"n":n,"t":t,"d":d,"g":g,"la_so":ls}))); conn.commit(); conn.close()
-        await u.message.reply_text("✅ Xong! Cấu hình thành công. Giờ gõ /canhbao hoặc /ngaydaiky để xem hạn nhé."); return ConversationHandler.END
+        await u.message.reply_text("✅ Xong! Hệ thống đã khôi phục thuật toán chuẩn cl4. Gõ /homnay để kiểm tra."); return ConversationHandler.END
     except ValueError: await u.message.reply_text("Lại gõ chữ à? Hãy nhập GIỜ bằng số (0-23):"); return NHAP_G
 
 async def cmd_canh_bao(u: Update, c: ContextTypes.DEFAULT_TYPE):
     info = get_data(u.effective_user.id)
-    if not info: await u.message.reply_text("Mày chưa nhập thông tin! Gõ /nhapngaysinh đi đã."); return
+    if not info: await u.message.reply_text("Mày chưa nhập thông tin!"); return
     today = date.today(); warns = []
     for i in range(1, 31):
         d = today + timedelta(days=i); res = phan_tich_ngay_sau(d, 12, info)
         if res["is_dangerous"]: warns.append(f"📅 *{d.strftime('%d/%m')}* ({res['diem']}đ): {res['muc']}\n   ↳ {', '.join(res['detail'])}")
-    await u.message.reply_text("⚠️ *QUÉT 30 NGÀY TỚI*\n━━━━━━━━━━━━━━\n\n" + ("\n\n".join(warns) if warns else "✅ Mọi sự bình an, không thấy hạn nặng."), parse_mode="Markdown")
+    await u.message.reply_text("⚠️ *QUÉT 30 NGÀY TỚI*\n━━━━━━━━━━━━━━\n\n" + ("\n\n".join(warns) if warns else "✅ Mọi sự bình an."), parse_mode="Markdown")
 
 async def cmd_ngay_dai_ky(u: Update, c: ContextTypes.DEFAULT_TYPE):
     info = get_data(u.effective_user.id)
-    if not info: await u.message.reply_text("Mày chưa nhập thông tin! Gõ /nhapngaysinh đi đã."); return
+    if not info: await u.message.reply_text("Mày chưa nhập thông tin!"); return
     m = int(c.args[0]) if c.args and c.args[0].isdigit() else date.today().month
     y = date.today().year; msg = [f"📅 *NGÀY XUNG THÁNG {m}/{y}*\n━━━━━━━━━━━━━━"]; curr = date(y, m, 1); found = False
     while curr.month == m:
@@ -354,12 +337,11 @@ async def cmd_ngay_dai_ky(u: Update, c: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_hom_nay(u: Update, c: ContextTypes.DEFAULT_TYPE):
     info = get_data(u.effective_user.id)
-    if not info: await u.message.reply_text("Mày chưa nhập thông tin! Gõ /nhapngaysinh đi đã."); return
+    if not info: await u.message.reply_text("Mày chưa nhập thông tin!"); return
     res = phan_tich_ngay_sau(date.today(), datetime.now().hour, info); exp = phan_tich_chuyen_gia_3_mon(date.today(), info["la_so"])
     dung_than, than_loai = xac_dinh_dung_than(info["la_so"]) 
     def bar(s): return "🟢" * int(s/2) + "⚪" * (5 - int(s/2))
-    
-    txt = f"☀️ *KHÍ VẬN HIỆN TẠI:*\n━━━━━━━━━━\n" \
+    txt = f"☀️ *KHÍ VẬN HIỆN TẠI (Thuật toán cl4):*\n━━━━━━━━━━\n" \
           f"👤 Thân {than_loai} - Dụng Thần: {', '.join(dung_than)}\n\n" \
           f"📊 *Chỉ số (Thang 10):*\n💰 Trading: {exp['trading']} {bar(exp['trading'])}\n📚 Học tập: {exp['study']} {bar(exp['study'])}\n🚗 Di chuyển: {exp['move']} {bar(exp['move'])}\n\n" \
           f"*Kết quả:* {res['muc']} ({res['diem']}đ)\n" + "\n".join(res['detail'])
