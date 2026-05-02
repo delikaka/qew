@@ -356,7 +356,7 @@ async def nhap_g(u: Update, c: ContextTypes.DEFAULT_TYPE):
             await u.message.reply_text(f"❌ Lỗi: Ngày {d}/{t}/{n} không tồn tại. Gõ /nhapngaysinh lại!"); return ConversationHandler.END
         _, tc = get_tiet_khi(ngay_sinh); ls = build_tu_tru(n, tc, ngay_sinh, g)
         conn = sqlite3.connect(DB_PATH); conn.execute("INSERT OR REPLACE INTO users VALUES (?,?)", (str(u.effective_user.id), json.dumps({"n":n,"t":t,"d":d,"g":g,"la_so":ls}))); conn.commit(); conn.close()
-        await u.message.reply_text("✅ Xong!Cấu hình thành công. Giờ gõ /canhbao & /ngaydaiky & /homnay để xem hạn nhé."); return ConversationHandler.END
+        await u.message.reply_text("✅ Xong! Cấu hình thành công.Gõ /canhbao & /ngaydaiky & /homnay để xem hạn nhé."); return ConversationHandler.END
     except ValueError: await u.message.reply_text("Lại gõ chữ à? Hãy nhập GIỜ bằng số (0-23):"); return NHAP_G
 
 async def cmd_canh_bao(u: Update, c: ContextTypes.DEFAULT_TYPE):
