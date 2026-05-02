@@ -33,6 +33,23 @@ TUONG_KHAC = {"Mộc":"Thổ","Thổ":"Thủy","Thủy":"Hỏa","Hỏa":"Kim","K
 LUC_HOP = {frozenset({"Tý", "Sửu"}), frozenset({"Dần", "Hợi"}), frozenset({"Mão", "Tuất"}), frozenset({"Thìn", "Dậu"}), frozenset({"Tỵ", "Thân"}), frozenset({"Ngọ", "Mùi"})}
 LUC_XUNG = {frozenset({"Tý", "Ngọ"}), frozenset({"Sửu", "Mùi"}), frozenset({"Dần", "Thân"}), frozenset({"Mão", "Dậu"}), frozenset({"Thìn", "Tuất"}), frozenset({"Tỵ", "Hợi"})}
 
+# ============================================================
+# BỔ SUNG: MA TRẬN TÀNG CAN (TỶ LỆ NĂNG LƯỢNG ẨN)
+# ============================================================
+TANG_CAN = {
+    "Tý": {"Quý": 1.0},
+    "Sửu": {"Kỷ": 0.6, "Quý": 0.3, "Tân": 0.1},
+    "Dần": {"Giáp": 0.7, "Bính": 0.2, "Mậu": 0.1},
+    "Mão": {"Ất": 1.0},
+    "Thìn": {"Mậu": 0.6, "Ất": 0.3, "Quý": 0.1},
+    "Tỵ": {"Bính": 0.7, "Canh": 0.2, "Mậu": 0.1},
+    "Ngọ": {"Đinh": 0.7, "Kỷ": 0.3},
+    "Mùi": {"Kỷ": 0.6, "Đinh": 0.3, "Ất": 0.1},
+    "Thân": {"Canh": 0.7, "Nhâm": 0.2, "Mậu": 0.1},
+    "Dậu": {"Tân": 1.0},
+    "Tuất": {"Mậu": 0.6, "Đinh": 0.3, "Tân": 0.1},
+    "Hợi": {"Nhâm": 0.7, "Giáp": 0.3}
+}
 # ------------------------------------------------------------
 # LÝ THUYẾT VÒNG TRƯỜNG SINH (GIỮ NGUYÊN)
 # ------------------------------------------------------------
@@ -133,21 +150,49 @@ TRONG_SO_NL = {
 def dinh_luong_nang_luong(ls):
     nc_hanh = NGU_HANH[ls["nhat_chu"]]
     hanh_sinh_nc = next((k for k, v in TUONG_SINH.items() if v == nc_hanh), None)
-    diem_tuong_tro = 0.0; diem_that_tho = 0.0
-    cac_tru = {
-        "can_nam": NGU_HANH.get(ls["nam"]["can"]), "chi_nam": NGU_HANH.get(ls["nam"]["chi"]),
-        "can_thang": NGU_HANH.get(ls["thang"]["can"]), "chi_thang": NGU_HANH.get(ls["thang"]["chi"]),
-        "chi_ngay": NGU_HANH.get(ls["ngay"]["chi"]),
-        "can_gio": NGU_HANH.get(ls["gio"]["can"]), "chi_gio": NGU_HANH.get(ls["gio"]["chi"])
+    
+    diem_tuong_tro = 0.0
+    diem_that_tho = 0.0
+    chi_tiet_hanh = {"Mộc": 0.0, "Hỏa": 0.0, "Thổ": 0.0, "Kim": 0.0, "Thủy": 0.0}
+
+    # 1. Xử lý Thiên Can (Lộ diện: Nhận 100% năng lượng của hành đó)
+    cac_can = {
+        "can_nam": ls["nam"]["can"],
+        "can_thang": ls["thang"]["can"],
+        "can_ngay": ls["ngay"]["can"],
+        "can_gio": ls["gio"]["can"]
     }
-    chi_tiet_hanh = {"Mộc": 0, "Hỏa": 0, "Thổ": 0, "Kim": 0, "Thủy": 0}
-    for vitri, hanh in cac_tru.items():
-        if hanh:
-            diem = TRONG_SO_NL[vitri]
-            chi_tiet_hanh[hanh] += diem
-            if hanh == nc_hanh or hanh == hanh_sinh_nc: diem_tuong_tro += diem
-            else: diem_that_tho += diem
-    return diem_tuong_tro, diem_that_tho, chi_tiet_hanh
+    for vitri, can in cac_can.items():
+        if vitri in TRONG_SO_NL and TRONG_SO_NL[vitri] > 0:
+            hanh = NGU_HANH.get(can)
+            if hanh:
+                chi_tiet_hanh[hanh] += TRONG_SO_NL[vitri]
+
+    # 2. Xử lý Địa Chi (Ẩn tàng: Phân bổ điểm năng lượng theo tỷ lệ % Tàng Can)
+    cac_chi = {
+        "chi_nam": ls["nam"]["chi"],
+        "chi_thang": ls["thang"]["chi"],
+        "chi_ngay": ls["ngay"]["chi"],
+        "chi_gio": ls["gio"]["chi"]
+    }
+    for vitri, chi in cac_chi.items():
+        if vitri in TRONG_SO_NL and TRONG_SO_NL[vitri] > 0:
+            tong_diem_chi = TRONG_SO_NL[vitri]
+            tang_can_dict = TANG_CAN.get(chi, {})
+            for can_an, ti_le in tang_can_dict.items():
+                hanh_an = NGU_HANH.get(can_an)
+                if hanh_an:
+                    chi_tiet_hanh[hanh_an] += tong_diem_chi * ti_le
+
+    # 3. Tính toán Thân Vượng/Nhược dựa trên chi_tiet_hanh đã bóc tách siêu chuẩn
+    for hanh, diem in chi_tiet_hanh.items():
+        if hanh == nc_hanh or hanh == hanh_sinh_nc:
+            diem_tuong_tro += diem
+        else:
+            diem_that_tho += diem
+
+    # Làm tròn để tránh lỗi số học thập phân (floating point)
+    return round(diem_tuong_tro, 2), round(diem_that_tho, 2), {k: round(v, 2) for k, v in chi_tiet_hanh.items()}
 
 def xac_dinh_dung_than(ls):
     nc_hanh = NGU_HANH[ls["nhat_chu"]]
