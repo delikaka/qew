@@ -79,6 +79,18 @@ def get_tiet_khi(ngay: date):
     MAP = {"Lập Xuân":"Dần","Kinh Trập":"Mão","Thanh Minh":"Thìn","Lập Hạ":"Tỵ","Mang Chủng":"Ngọ","Tiểu Thử":"Mùi","Lập Thu":"Thân","Bạch Lộ":"Dậu","Hàn Lộ":"Tuất","Lập Đông":"Hợi","Đại Tuyết":"Tý","Tiểu Hàn":"Sửu"}
     return t, MAP.get(t, "Tý")
 
+# Ngũ Hổ Độn: Can năm → Can bắt đầu của tháng Dần (tháng 1 âm lịch)
+# Giáp/Kỷ → Bính Dần | Ất/Canh → Mậu Dần | Bính/Tân → Canh Dần | Đinh/Nhâm → Nhâm Dần | Mậu/Quý → Giáp Dần
+NGU_HO_DUN = {0: 2, 1: 4, 2: 6, 3: 8, 4: 0}  # (idx_can_nam % 5) → idx_can bắt đầu tháng Dần
+
+def get_can_thang(can_nam: str, chi_thang: str) -> str:
+    idx_can_nam = THIEN_CAN.index(can_nam)
+    idx_chi_thang = DIA_CHI.index(chi_thang)
+    # Tháng Dần = chi index 2, dùng làm gốc đếm
+    start_can_idx = NGU_HO_DUN[idx_can_nam % 5]
+    can_thang_idx = (start_can_idx + (idx_chi_thang - 2)) % 10
+    return THIEN_CAN[can_thang_idx]
+
 def build_tu_tru(nam, tc, ngay, gio):
     cn = THIEN_CAN[(nam-4)%10]; chin = DIA_CHI[(nam-4)%12]
     d_diff = (ngay - date(1900,1,1)).days
