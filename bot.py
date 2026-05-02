@@ -353,10 +353,10 @@ async def nhap_g(u: Update, c: ContextTypes.DEFAULT_TYPE):
         try:
             ngay_sinh = date(n, t, d)
         except ValueError:
-            await u.message.reply_text(f"❌ Lỗi: Ngày {d}/{t}/{n} không tồn tại.Gõ /nhapngaysinh lại!"); return ConversationHandler.END
+            await u.message.reply_text(f"❌ Lỗi: Ngày {d}/{t}/{n} không tồn tại. Gõ /nhapngaysinh lại!"); return ConversationHandler.END
         _, tc = get_tiet_khi(ngay_sinh); ls = build_tu_tru(n, tc, ngay_sinh, g)
         conn = sqlite3.connect(DB_PATH); conn.execute("INSERT OR REPLACE INTO users VALUES (?,?)", (str(u.effective_user.id), json.dumps({"n":n,"t":t,"d":d,"g":g,"la_so":ls}))); conn.commit(); conn.close()
-        await u.message.reply_text("✅ Xong!Cấu hình thành công.Giờ gõ /canhbao & /ngaydaiky & /homnay để xem hạn nhé."); return ConversationHandler.END
+        await u.message.reply_text("✅ Xong! Hệ thống đã khôi phục thuật toán chuẩn cl4. Gõ /homnay để kiểm tra."); return ConversationHandler.END
     except ValueError: await u.message.reply_text("Lại gõ chữ à? Hãy nhập GIỜ bằng số (0-23):"); return NHAP_G
 
 async def cmd_canh_bao(u: Update, c: ContextTypes.DEFAULT_TYPE):
@@ -370,7 +370,7 @@ async def cmd_canh_bao(u: Update, c: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_ngay_dai_ky(u: Update, c: ContextTypes.DEFAULT_TYPE):
     info = get_data(u.effective_user.id)
-    if not info: await u.message.reply_text("Mày chưa nhập thông tin!Gõ /nhapngaysinh đi đã."); return
+    if not info: await u.message.reply_text("Mày chưa nhập thông tin!"); return
     m = int(c.args[0]) if c.args and c.args[0].isdigit() else date.today().month
     y = date.today().year; msg = [f"📅 *NGÀY XUNG THÁNG {m}/{y}*\n━━━━━━━━━━━━━━"]; curr = date(y, m, 1); found = False
     while curr.month == m:
@@ -382,7 +382,7 @@ async def cmd_ngay_dai_ky(u: Update, c: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_hom_nay(u: Update, c: ContextTypes.DEFAULT_TYPE):
     info = get_data(u.effective_user.id)
-    if not info: await u.message.reply_text("Mày chưa nhập thông tin!Gõ /nhapngaysinh đi đã."); return
+    if not info: await u.message.reply_text("Mày chưa nhập thông tin!"); return
     res = phan_tich_ngay_sau(date.today(), datetime.now().hour, info); exp = phan_tich_chuyen_gia_3_mon(date.today(), info["la_so"])
     dung_than, than_loai = xac_dinh_dung_than(info["la_so"]) 
     def bar(s): return "🟢" * int(s/2) + "⚪" * (5 - int(s/2))
