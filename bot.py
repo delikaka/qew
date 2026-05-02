@@ -92,14 +92,34 @@ def get_can_thang(can_nam: str, chi_thang: str) -> str:
     return THIEN_CAN[can_thang_idx]
 
 def build_tu_tru(nam, tc, ngay, gio):
-    cn = THIEN_CAN[(nam-4)%10]; chin = DIA_CHI[(nam-4)%12]
-    d_diff = (ngay - date(1900,1,1)).days
-    cng = THIEN_CAN[(d_diff + 10) % 10]; ching = DIA_CHI[(d_diff + 10) % 12]
-    idx_ngay = (d_diff + 10) % 10
-    start_can_gio = (idx_ngay % 5) * 2
+    # 1. Tính Trụ Năm
+    cn = THIEN_CAN[(nam - 4) % 10]
+    chin = DIA_CHI[(nam - 4) % 12]
+
+    # 2. Tính Trụ Ngày (Cần kiểm tra kỹ mốc 1900/1/1 là Giáp Tuất)
+    d_diff = (ngay - date(1900, 1, 1)).days
+    idx_can_ngay = (d_diff + 0) % 10  # Giáp là 0
+    idx_chi_ngay = (d_diff + 10) % 12 # Tuất là 10
+    cng = THIEN_CAN[idx_can_ngay]
+    ching = DIA_CHI[idx_chi_ngay]
+
+    # 3. Tính Trụ Tháng (Gọi hàm Ngũ Hổ Độn từ File 2)
+    # tc ở đây là Địa chi tháng đã lấy từ get_tiet_khi
+    cthang = get_can_thang(cn, tc) 
+
+    # 4. Tính Trụ Giờ (Ngũ Tý Độn)
     idx_gio = (gio + 1) // 2
-    cg = THIEN_CAN[(start_can_gio + idx_gio) % 10]; chig = DIA_CHI[idx_gio % 12]
-    return {"nam":{"can":cn,"chi":chin},"ngay":{"can":cng,"chi":ching},"thang":{"chi":tc},"gio":{"can":cg,"chi":chig},"nhat_chu":cng}
+    start_can_gio_idx = (idx_can_ngay % 5) * 2
+    cg = THIEN_CAN[(start_can_gio_idx + idx_gio) % 10]
+    chig = DIA_CHI[idx_gio % 12]
+
+    return {
+        "nam": {"can": cn, "chi": chin},
+        "thang": {"can": cthang, "chi": tc}, # Đã bổ sung Thiên can tháng
+        "ngay": {"can": cng, "chi": ching},
+        "gio": {"can": cg, "chi": chig},
+        "nhat_chu": cng
+    }
 
 def get_season_multiplier(month_chi, day_chi):
     day_nh = NGU_HANH.get(day_chi)
