@@ -93,30 +93,38 @@ def get_can_thang(can_nam: str, chi_thang: str) -> str:
     return THIEN_CAN[can_thang_idx]
 
 def build_tu_tru(nam, tc, ngay, gio):
-    # 1. Tính Trụ Năm
+    # 1. XỬ LÝ NHẢY NGÀY (TỬ HUYỆT)
+    # Nếu sinh từ 23h, phong thủy tính là giờ Tý của ngày hôm sau
+    ngay_tinh_nhat_chu = ngay
+    if gio >= 23:
+        ngay_tinh_nhat_chu = ngay + timedelta(days=1)
+
+    # 2. Tính Trụ Năm (Vẫn dùng năm gốc, trừ khi mày muốn fix vụ Lập Xuân)
     cn = THIEN_CAN[(nam - 4) % 10]
     chin = DIA_CHI[(nam - 4) % 12]
 
-    # 2. Tính Trụ Ngày (Cần kiểm tra kỹ mốc 1900/1/1 là Giáp Tuất)
-    d_diff = (ngay - date(1900, 1, 1)).days
-    idx_can_ngay = (d_diff + 0) % 10  # Giáp là 0
-    idx_chi_ngay = (d_diff + 10) % 12 # Tuất là 10
+    # 3. Tính Trụ Ngày (Dựa trên ngày đã được hiệu chỉnh nếu là giờ Tý)
+    d_diff = (ngay_tinh_nhat_chu - date(1900, 1, 1)).days
+    idx_can_ngay = (d_diff + 0) % 10  
+    idx_chi_ngay = (d_diff + 10) % 12 
     cng = THIEN_CAN[idx_can_ngay]
     ching = DIA_CHI[idx_chi_ngay]
 
-    # 3. Tính Trụ Tháng (Gọi hàm Ngũ Hổ Độn từ File 2)
-    # tc ở đây là Địa chi tháng đã lấy từ get_tiet_khi
+    # 4. Tính Trụ Tháng (Giữ nguyên logic Ngũ Hổ Độn mày đã fix)[cite: 5]
     cthang = get_can_thang(cn, tc) 
 
-    # 4. Tính Trụ Giờ (Ngũ Tý Độn)
+    # 5. Tính Trụ Giờ (Chia 12 khung giờ chuẩn)[cite: 1, 2, 3, 5]
     idx_gio = (gio + 1) // 2
+    if idx_gio == 12: idx_gio = 0 # 23h-24h quay về giờ Tý (0)
+    
+    # Ngũ Tý Độn tính Thiên Can giờ dựa trên Can ngày[cite: 1, 2, 3, 5]
     start_can_gio_idx = (idx_can_ngay % 5) * 2
     cg = THIEN_CAN[(start_can_gio_idx + idx_gio) % 10]
-    chig = DIA_CHI[idx_gio % 12]
+    chig = DIA_CHI[idx_gio]
 
     return {
         "nam": {"can": cn, "chi": chin},
-        "thang": {"can": cthang, "chi": tc}, # Đã bổ sung Thiên can tháng
+        "thang": {"can": cthang, "chi": tc},
         "ngay": {"can": cng, "chi": ching},
         "gio": {"can": cg, "chi": chig},
         "nhat_chu": cng
