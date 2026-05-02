@@ -88,7 +88,8 @@ def get_can_thang(can_nam: str, chi_thang: str) -> str:
     idx_chi_thang = DIA_CHI.index(chi_thang)
     # Tháng Dần = chi index 2, dùng làm gốc đếm
     start_can_idx = NGU_HO_DUN[idx_can_nam % 5]
-    can_thang_idx = (start_can_idx + (idx_chi_thang - 2)) % 10
+    chi_offset = (idx_chi_thang - 2) % 12 
+    can_thang_idx = (start_can_idx + chi_offset) % 10
     return THIEN_CAN[can_thang_idx]
 
 def build_tu_tru(nam, tc, ngay, gio):
@@ -146,9 +147,12 @@ def xac_dinh_dung_than(ls):
     
     # Gom các hành lộ diện trong lá số
     cac_hanh = [
+
         NGU_HANH.get(ls["nam"]["can"]), NGU_HANH.get(ls["nam"]["chi"]),
-        NGU_HANH.get(ls["thang"]["chi"]), NGU_HANH.get(ls["ngay"]["chi"]),
+        NGU_HANH.get(ls["thang"]["can"]), NGU_HANH.get(ls["thang"]["chi"]), # Thêm can tháng vào đây!
+        NGU_HANH.get(ls["ngay"]["can"]), NGU_HANH.get(ls["ngay"]["chi"]), # Bổ sung luôn cả can ngày nếu mày lỡ thiếu (nó chính là nhat_chu)
         NGU_HANH.get(ls["gio"]["can"]), NGU_HANH.get(ls["gio"]["chi"])
+
     ]
     
     # Tính điểm Thân
