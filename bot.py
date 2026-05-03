@@ -54,7 +54,7 @@ TANG_CAN = {
     "Mão": {"Ất": 1.0},
     "Thìn": {"Mậu": 0.6, "Ất": 0.3, "Quý": 0.1},
     "Tỵ": {"Bính": 0.7, "Canh": 0.2, "Mậu": 0.1},
-    "Ngọ": {"Đinh": 0.6, "Kỷ": 0.3, "Giáp": 0.1},  # Fix #4: Bổ sung Giáp (Mộc ẩn trong Ngọ), chuẩn hóa tỷ lệ tổng = 1.0
+    "Ngọ": {"Đinh": 0.7, "Kỷ": 0.3},  # Chuẩn: Ngọ tàng Đinh (chủ) + Kỷ (tạp). Không có Giáp — Mộc sinh Hỏa ≠ Mộc ẩn trong Hỏa.
     "Mùi": {"Kỷ": 0.6, "Đinh": 0.3, "Ất": 0.1},
     "Thân": {"Canh": 0.7, "Nhâm": 0.2, "Mậu": 0.1},
     "Dậu": {"Tân": 1.0},
@@ -97,15 +97,106 @@ def tinh_thap_than(nhat_chu, can_check):
     if TUONG_KHAC.get(nh_check) == nh_chu: return "Thất Sát" if cung_ad else "Chính Quan"
     return "N/A"
 
+# ── TIẾT KHÍ THIÊN VĂN (thay thế bảng ngày cố định) ──────────────────────────
+# Kinh độ hoàng đạo biểu kiến (tropical ecliptic longitude) của 12 Tiết Khí
+# dùng trong Tứ Trụ (mỗi tiết = điểm bắt đầu của tháng địa chi tương ứng).
+# Hệ: Xuân Phân = 0°, mỗi tiết cách nhau 30°, hướng tăng thuận chiều.
+import ephem as _ephem
+import math as _math
+
+_TIET_KHI_DATA = [
+    (285, "Tiểu Hàn",  "Sửu"),
+    (315, "Lập Xuân",  "Dần"),
+    (345, "Kinh Trập", "Mão"),
+    (15,  "Thanh Minh","Thìn"),
+    (45,  "Lập Hạ",   "Tỵ"),
+    (75,  "Mang Chủng","Ngọ"),
+    (105, "Tiểu Thử", "Mùi"),
+    (135, "Lập Thu",  "Thân"),
+    (165, "Bạch Lộ",  "Dậu"),
+    (195, "Hàn Lộ",   "Tuất"),
+    (225, "Lập Đông", "Hợi"),
+    (255, "Đại Tuyết","Tý"),
+]
+
+def _sun_ecl_lon(d) -> float:
+    """Ecliptic longitude của Mặt Trời tại ephem.Date d, trả về [0, 360)."""
+    sun = _ephem.Sun(d)
+    ecl = _ephem.Ecliptic(sun, epoch=d)
+    return _math.degrees(float(ecl.lon)) % 360
+
+def _find_solar_term_utc(year: int, target_lon: float):
+    """
+    Tìm thời điểm UTC Mặt Trời đạt ecliptic longitude target_lon trong năm year.
+    Dùng scan 6h + binary search; sai số < 2 phút (đủ độ chính xác cho Tứ Trụ).
+    """
+    start = _ephem.Date(f"{year}/1/1 00:00:00")
+    prev_lon = _sun_ecl_lon(start)
+    # target_cum: longitude tích lũy (không wrap) cần đạt tới
+    target_cum = target_lon if target_lon >= prev_lon - 5 else target_lon + 360
+    cumulative, prev_d = prev_lon, start
+
+    for step in range(1, 370 * 4 + 2):          # quét tối đa 370 ngày × 4/ngày
+        d = _ephem.Date(start + step * 6 / 24.0)
+        lon = _sun_ecl_lon(d)
+        delta = lon - prev_lon
+        if delta < -180: delta += 360            # xử lý wrap 360→0
+        cumulative += delta
+        if (cumulative - delta) < target_cum <= cumulative:
+            found_lo, found_hi = prev_d, d
+            break
+        prev_lon, prev_d = lon, d
+    else:
+        return None
+
+    # Binary search tinh chỉnh trong cửa sổ 6h
+    lo, hi = float(found_lo), float(found_hi)
+    for _ in range(80):
+        mid = (lo + hi) / 2
+        m_lon = _sun_ecl_lon(_ephem.Date(mid))
+        diff = (m_lon - target_lon + 360) % 360
+        if diff > 180: diff -= 360
+        if abs(diff) < 1e-9: break
+        if diff < 0: lo = mid
+        else:        hi = mid
+
+    from datetime import timezone as _tz
+    return _ephem.Date(mid).datetime().replace(tzinfo=_tz.utc)
+
+from functools import lru_cache as _lru_cache
+
+@_lru_cache(maxsize=20)
+def _tiet_khi_table(year: int):
+    """Build và cache bảng (date_vn, name, chi) cho năm year (giờ Việt Nam)."""
+    rows = []
+    for check_year in (year - 1, year):
+        for lon, name, chi in _TIET_KHI_DATA:
+            dt_utc = _find_solar_term_utc(check_year, lon)
+            if dt_utc is None: continue
+            d_vn = dt_utc.astimezone(TZ_VN).date()
+            if date(year, 1, 1) <= d_vn <= date(year, 12, 31):
+                rows.append((d_vn, name, chi))
+    rows.sort()
+    return rows
+
 def get_tiet_khi(ngay: date):
-    TK = [(1,6,"Tiểu Hàn"),(2,4,"Lập Xuân"),(3,6,"Kinh Trập"),(4,5,"Thanh Minh"),(5,6,"Lập Hạ"),(6,6,"Mang Chủng"),(7,7,"Tiểu Thử"),(8,7,"Lập Thu"),(9,8,"Bạch Lộ"),(10,8,"Hàn Lộ"),(11,7,"Lập Đông"),(12,7,"Đại Tuyết")]
-    t, c = "Đông Chí", "Tý"
-    for m, d, name in reversed(TK):
-        try:
-            if ngay >= date(ngay.year, m, d): t = name; break
-        except ValueError: continue
-    MAP = {"Lập Xuân":"Dần","Kinh Trập":"Mão","Thanh Minh":"Thìn","Lập Hạ":"Tỵ","Mang Chủng":"Ngọ","Tiểu Thử":"Mùi","Lập Thu":"Thân","Bạch Lộ":"Dậu","Hàn Lộ":"Tuất","Lập Đông":"Hợi","Đại Tuyết":"Tý","Tiểu Hàn":"Sửu"}
-    return t, MAP.get(t, "Tý")
+    """
+    Trả về (tên_tiết_khí, địa_chi_tháng) đang áp dụng cho ngày `ngay`.
+    Dùng vị trí thiên văn thực (ephem), chính xác đến từng ngày theo giờ VN.
+    Cache per-year để tránh tính lại (mỗi năm chỉ tính 1 lần).
+    """
+    table = _tiet_khi_table(ngay.year)
+    # Bổ sung bảng năm trước để xử lý đầu tháng 1 (trước Tiểu Hàn)
+    prev = _tiet_khi_table(ngay.year - 1)
+    all_terms = sorted(set(prev + table))
+
+    name, chi = "Đông Chí", "Tý"        # fallback: sau Đông Chí cuối năm
+    for d, n, c in all_terms:
+        if d <= ngay:
+            name, chi = n, c
+        else:
+            break
+    return name, chi
 
 NGU_HO_DUN = {0: 2, 1: 4, 2: 6, 3: 8, 4: 0}  
 
