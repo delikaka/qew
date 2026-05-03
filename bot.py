@@ -3,6 +3,17 @@ import os
 import json
 import sqlite3
 from datetime import datetime, date, timedelta
+from zoneinfo import ZoneInfo
+
+TZ_VN = ZoneInfo("Asia/Ho_Chi_Minh")  # UTC+7
+
+def now_vn() -> datetime:
+    """Trả về datetime hiện tại theo giờ Việt Nam (UTC+7)."""
+    return datetime.now(TZ_VN)
+
+def today_vn() -> date:
+    """Trả về ngày hiện tại theo giờ Việt Nam."""
+    return now_vn().date()
 from telegram import Update
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
@@ -369,7 +380,7 @@ async def nhap_g(u: Update, c: ContextTypes.DEFAULT_TYPE):
 async def cmd_canh_bao(u: Update, c: ContextTypes.DEFAULT_TYPE):
     info = get_data(u.effective_user.id)
     if not info: await u.message.reply_text("Mày chưa nhập thông tin! Gõ /nhapngaysinh đi đã."); return
-    today = date.today(); warns = []
+    today = today_vn(); warns = []
     for i in range(1, 31):
         d = today + timedelta(days=i); res = phan_tich_ngay_sau(d, 12, info)
         if res["is_dangerous"]: warns.append(f"📅 *{d.strftime('%d/%m')}* ({res['diem']}đ): {res['muc']}\n   ↳ {', '.join(res['detail'])}")
@@ -378,8 +389,8 @@ async def cmd_canh_bao(u: Update, c: ContextTypes.DEFAULT_TYPE):
 async def cmd_ngay_dai_ky(u: Update, c: ContextTypes.DEFAULT_TYPE):
     info = get_data(u.effective_user.id)
     if not info: await u.message.reply_text("Mày chưa nhập thông tin! Gõ /nhapngaysinh đi đã."); return
-    m = int(c.args[0]) if c.args and c.args[0].isdigit() else date.today().month
-    y = date.today().year; msg = [f"📅 *NGÀY XUNG THÁNG {m}/{y}*\n━━━━━━━━━━━━━━"]; curr = date(y, m, 1); found = False
+    m = int(c.args[0]) if c.args and c.args[0].isdigit() else today_vn().month
+    y = today_vn().year; msg = [f"📅 *NGÀY XUNG THÁNG {m}/{y}*\n━━━━━━━━━━━━━━"]; curr = date(y, m, 1); found = False
     while curr.month == m:
         res = phan_tich_ngay_sau(curr, 12, info)
         if res["is_dangerous"]: msg.append(f"• *{curr.strftime('%d/%m')}*: {res['muc']} ({res['diem']}đ)"); found = True
@@ -390,7 +401,7 @@ async def cmd_ngay_dai_ky(u: Update, c: ContextTypes.DEFAULT_TYPE):
 async def cmd_hom_nay(u: Update, c: ContextTypes.DEFAULT_TYPE):
     info = get_data(u.effective_user.id)
     if not info: await u.message.reply_text("Mày chưa nhập thông tin! Gõ /nhapngaysinh đi đã."); return
-    res = phan_tich_ngay_sau(date.today(), datetime.now().hour, info); exp = phan_tich_chuyen_gia_3_mon(date.today(), info["la_so"])
+    res = phan_tich_ngay_sau(today_vn(), now_vn().hour, info); exp = phan_tich_chuyen_gia_3_mon(today_vn(), info["la_so"])
     dung_than, than_loai = xac_dinh_dung_than(info["la_so"]) 
     def bar(s): return "🟢" * int(s/2) + "⚪" * (5 - int(s/2))
     txt = f"☀️ *KHÍ VẬN HIỆN TẠI (Thuật toán cl4):*\n━━━━━━━━━━\n" \
