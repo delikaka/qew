@@ -160,10 +160,10 @@ def _find_solar_term_utc(year: int, target_lon: float):
         if diff < 0: lo = mid
         else:        hi = mid
 
-    from datetime import timezone as _tz
-    return _ephem.Date(mid).datetime().replace(tzinfo=_tz.utc)
+    return _ephem.Date(mid).datetime().replace(tzinfo=_timezone.utc)
 
 from functools import lru_cache as _lru_cache
+from datetime import timezone as _timezone
 
 @_lru_cache(maxsize=20)
 def _tiet_khi_table(year: int):
