@@ -43,7 +43,7 @@ TANG_CAN = {
     "Mão": {"Ất": 1.0},
     "Thìn": {"Mậu": 0.6, "Ất": 0.3, "Quý": 0.1},
     "Tỵ": {"Bính": 0.7, "Canh": 0.2, "Mậu": 0.1},
-    "Ngọ": {"Đinh": 0.6, "Kỷ": 0.3, "Giáp": 0.1},  # Fix #4: Bổ sung Giáp ẩn tàng trong Ngọ
+    "Ngọ": {"Đinh": 0.6, "Kỷ": 0.3, "Giáp": 0.1},  # Fix #4: Bổ sung Giáp (Mộc ẩn trong Ngọ), chuẩn hóa tỷ lệ tổng = 1.0
     "Mùi": {"Kỷ": 0.6, "Đinh": 0.3, "Ất": 0.1},
     "Thân": {"Canh": 0.7, "Nhâm": 0.2, "Mậu": 0.1},
     "Dậu": {"Tân": 1.0},
@@ -203,11 +203,12 @@ def xac_dinh_dung_than(ls):
     diem_tuong_tro, diem_that_tho, chi_tiet_hanh = dinh_luong_nang_luong(ls)
 
     # Thuật toán Decision Tree chuẩn từ cl4
-    # Fix #12: Nâng ngưỡng Tòng từ 1.5 → 2.5 (tổng trọng số ~14, ngưỡng cũ quá thấp)
-    if diem_tuong_tro <= 2.5:
+    # Fix #12: Ngưỡng Tòng 2.0 (~18% tổng trọng số 11.0) — tính từ TRONG_SO_NL
+    # 1.5 cũ (~13%) quá thấp; 2.0 phản ánh đúng mức gần như không có lực đỡ
+    if diem_tuong_tro <= 2.0:
         hanh_manh_nhat = max(chi_tiet_hanh, key=chi_tiet_hanh.get)
         return [hanh_manh_nhat, TUONG_SINH.get(hanh_manh_nhat)], "Tòng Nhược (Đặc Biệt)"
-    if diem_that_tho <= 2.5:
+    if diem_that_tho <= 2.0:
         return [hanh_nc_sinh, nc_hanh], "Tòng Cường (Đặc Biệt)"
     if diem_tuong_tro >= 5.5:
         dung_than = [h for h in [hanh_nc_khac, hanh_nc_sinh, hanh_khac_nc] if h is not None]
@@ -220,8 +221,8 @@ def xac_dinh_dung_than(ls):
 # LOGIC BÌNH GIẢI (HỢP NHẤT)
 # ------------------------------------------------------------
 def get_season_multiplier(month_chi, day_chi):
-    # Fix #2: Dùng Tam Hội để xác định mùa vượng khi tính hệ số xung.
-    # tinh_suc_manh_nhat_chu dùng Tam Hợp/Trường Sinh — hai hàm có mục đích riêng biệt.
+    # Fix #2: Hàm này dùng Tam Hội (3 chi liên tiếp) để tính hệ số xung theo mùa.
+    # Phân biệt với tinh_suc_manh_nhat_chu dùng Tam Hợp/Trường Sinh — hai mục đích khác nhau.
     day_nh = NGU_HANH.get(day_chi)
     seasons = {"Mộc":["Dần","Mão","Thìn"],"Hỏa":["Tỵ","Ngọ","Mùi"],"Kim":["Thân","Dậu","Tuất"],"Thủy":["Hợi","Tý","Sửu"]}
     vuong_element = next((k for k, v in seasons.items() if month_chi in v), None)
@@ -270,36 +271,20 @@ def phan_tich_ngay_sau(ngay_check: date, gio: int, sinh_info: dict):
     tt_now = build_tu_tru(ngay_check.year, month_chi, ngay_check, gio)
     
     diem_hung = 0.0; chi_tiet = []
-    # Fix #7: Bổ sung Giờ và Tháng vào check_list để không bỏ sót cặp xung
-    check_list = [
-        ("Ngày",  tt_now["ngay"]["chi"],  1.5),
-        ("Năm",   tt_now["nam"]["chi"],   1.2),
-        ("Tháng", tt_now["thang"]["chi"], 1.0),
-        ("Giờ",   tt_now["gio"]["chi"],   0.8),
-    ]
+    check_list = [("Ngày", tt_now["ngay"]["chi"], 1.5), ("Năm", tt_now["nam"]["chi"], 1.2)]
     targets = [("Nhật Chủ", ls["ngay"]["chi"], 8), ("Trụ Năm", ls["nam"]["chi"], 5)]
 
     dung_than, _ = xac_dinh_dung_than(ls)
-
-    # Fix #9: Check Dụng Thần cho cả chi ngày lẫn chi giờ
     ngay_hanh = NGU_HANH.get(tt_now["ngay"]["chi"])
-    gio_hanh  = NGU_HANH.get(tt_now["gio"]["chi"])
     ts_state = get_truong_sinh(nhat_chu_can, tt_now["ngay"]["chi"])
-
+    
     if ngay_hanh in dung_than:
-        chi_tiet.append(f"✨ Hành ngày {ngay_hanh} là DỤNG THẦN (Đỡ được hung hiểm)")
+        chi_tiet.append(f"✨ Hành {ngay_hanh} là DỤNG THẦN (Đỡ được hung hiểm)")
         diem_hung -= 3.0
     else:
-        chi_tiet.append(f"⚠️ Hành ngày {ngay_hanh} là KỴ THẦN (Cẩn thận rủi ro)")
+        chi_tiet.append(f"⚠️ Hành {ngay_hanh} là KỴ THẦN (Cẩn thận rủi ro)")
         diem_hung += 2.0
-
-    if gio_hanh in dung_than:
-        chi_tiet.append(f"✨ Hành giờ {gio_hanh} là DỤNG THẦN (Khí giờ hỗ trợ)")
-        diem_hung -= 1.0
-    else:
-        chi_tiet.append(f"⚠️ Hành giờ {gio_hanh} là KỴ THẦN")
-        diem_hung += 1.0
-
+        
     chi_tiet.append(f"🔋 Năng lượng: {ts_state}")
     if ts_state in ["Tuyệt", "Tử", "Bệnh"]:
         diem_hung += 3.0
@@ -307,14 +292,15 @@ def phan_tich_ngay_sau(ngay_check: date, gio: int, sinh_info: dict):
     elif ts_state in ["Đế Vượng", "Lâm Quan", "Trường Sinh"]:
         diem_hung -= 2.0
 
-    # Fix #11: Hợp giải phải check với chi trong LÁ SỐ GỐC, không phải check_list hiện tại
+    # Fix #11: Hợp giải xung phải check chi ngày hiện tại có Lục Hợp với chi nào trong LÁ SỐ GỐC.
+    # Logic cũ tự check trong check_list → gần như không bao giờ đúng.
     all_la_so_chi = {ls["nam"]["chi"], ls["thang"]["chi"], ls["ngay"]["chi"], ls["gio"]["chi"]}
     for n_now, c_now, p_coeff in check_list:
         for n_tar, c_tar, weight in targets:
             if frozenset({c_now, c_tar}) in LUC_XUNG:
                 current_score = weight * p_coeff * get_season_multiplier(month_chi, c_now)
-                is_saved = any(frozenset({c_now, chi_gs}) in LUC_HOP for chi_gs in all_la_so_chi if chi_gs != c_now)
-                if is_saved: chi_tiet.append(f"🛡️ {n_now} Xung {n_tar} nhưng có Hợp giải từ lá số")
+                is_saved = any(frozenset({c_now, chi_gs}) in LUC_HOP for chi_gs in all_la_so_chi)
+                if is_saved: chi_tiet.append(f"🛡️ {n_now} Xung {n_tar} nhưng có Hợp giải từ lá số gốc")
                 else:
                     diem_hung += current_score
                     chi_tiet.append(f"🔥 {n_now} Xung {n_tar} ({c_now}-{c_tar})")
