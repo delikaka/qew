@@ -266,14 +266,40 @@ def phan_tich_chuyen_gia_3_mon(ngay_check: date, ls: dict):
     s_study = 5.0 + (3.0 if thap_than in ["Chính Ấn", "Thiên Ấn"] else 0) + (1.0 if NGU_HANH[chi_ngay] in ["Thủy", "Mộc"] else 0)
     s_move = 5.0 + (4.5 if chi_ngay in [get_dich_ma(ls["nam"]["chi"]), get_dich_ma(ls["ngay"]["chi"])] else 0)
     if frozenset({chi_ngay, ls["ngay"]["chi"]}) in LUC_XUNG: s_move -= 4.0
-    
+
+    # Sức khỏe: dựa vào Trường Sinh state (thân thể khí lực) + Thủy/Mộc (tạng phủ)
+    # + Xung Nhật Chủ trực tiếp (thân thể bất an)
+    s_health = 5.0
+    if ts_state in ["Đế Vượng", "Lâm Quan", "Trường Sinh"]: s_health += 3.0
+    elif ts_state in ["Tuyệt", "Tử", "Bệnh"]: s_health -= 3.0
+    elif ts_state in ["Suy", "Mộ"]: s_health -= 1.5
+    if NGU_HANH[chi_ngay] in ["Thủy", "Mộc"]: s_health += 1.0
+    if frozenset({chi_ngay, ls["ngay"]["chi"]}) in LUC_XUNG: s_health -= 2.5
+
+    # Công việc: Quan tinh (Chính Quan/Thất Sát) = áp lực/cơ hội từ tổ chức
+    # Thực Thần/Thương Quan = năng lực thực thi
+    # Xung Trụ Tháng = môi trường làm việc bất ổn
+    s_work = 5.0
+    if thap_than in ["Chính Quan"]: s_work += 3.0
+    elif thap_than in ["Thất Sát"]: s_work += 1.5  # áp lực nhưng vẫn có cơ hội nếu thân vượng
+    elif thap_than in ["Thực Thần"]: s_work += 2.5
+    elif thap_than in ["Thương Quan"]: s_work += 1.0
+    elif thap_than in ["Kiếp Tài"]: s_work -= 2.0  # cạnh tranh, tiểu nhân
+    if frozenset({chi_ngay, ls["thang"]["chi"]}) in LUC_XUNG: s_work -= 3.0  # xung trụ tháng = công việc chao đảo
+
     if ngay_hanh in dung_than:
         s_trade += 2.0; s_study += 2.0; s_move += 2.0
+        s_health += 1.5; s_work += 2.0
     else:
         s_trade -= 1.5; s_study -= 1.0; s_move -= 1.5
+        s_health -= 1.0; s_work -= 1.5
 
     s_trade *= he_so_ts; s_study *= he_so_ts; s_move *= he_so_ts
-    return {k: round(max(0, min(10, v)), 1) for k, v in {"trading": s_trade, "study": s_study, "move": s_move}.items()}
+    s_health *= he_so_ts; s_work *= he_so_ts
+    return {k: round(max(0, min(10, v)), 1) for k, v in {
+        "trading": s_trade, "study": s_study, "move": s_move,
+        "health": s_health, "work": s_work
+    }.items()}
 
 def phan_tich_ngay_sau(ngay_check: date, gio: int, sinh_info: dict):
     ls = sinh_info["la_so"]
@@ -406,7 +432,12 @@ async def cmd_hom_nay(u: Update, c: ContextTypes.DEFAULT_TYPE):
     def bar(s): return "🟢" * int(s/2) + "⚪" * (5 - int(s/2))
     txt = f"☀️ *KHÍ VẬN HIỆN TẠI (Thuật toán cl4):*\n━━━━━━━━━━\n" \
           f"👤 Thân {than_loai} - Dụng Thần: {', '.join(dung_than)}\n\n" \
-          f"📊 *Chỉ số (Thang 10):*\n💰 Trading: {exp['trading']} {bar(exp['trading'])}\n📚 Học tập: {exp['study']} {bar(exp['study'])}\n🚗 Di chuyển: {exp['move']} {bar(exp['move'])}\n\n" \
+          f"📊 *Chỉ số (Thang 10):*\n" \
+          f"💰 Trading: {exp['trading']} {bar(exp['trading'])}\n" \
+          f"📚 Học tập: {exp['study']} {bar(exp['study'])}\n" \
+          f"🚗 Di chuyển: {exp['move']} {bar(exp['move'])}\n" \
+          f"❤️ Sức khỏe: {exp['health']} {bar(exp['health'])}\n" \
+          f"💼 Công việc: {exp['work']} {bar(exp['work'])}\n\n" \
           f"*Kết quả:* {res['muc']} ({res['diem']}đ)\n" + "\n".join(res['detail'])
     await u.message.reply_text(txt, parse_mode="Markdown")
 
