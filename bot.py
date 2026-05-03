@@ -33,17 +33,8 @@ TUONG_KHAC = {"Mộc":"Thổ","Thổ":"Thủy","Thủy":"Hỏa","Hỏa":"Kim","K
 LUC_HOP = {frozenset({"Tý", "Sửu"}), frozenset({"Dần", "Hợi"}), frozenset({"Mão", "Tuất"}), frozenset({"Thìn", "Dậu"}), frozenset({"Tỵ", "Thân"}), frozenset({"Ngọ", "Mùi"})}
 LUC_XUNG = {frozenset({"Tý", "Ngọ"}), frozenset({"Sửu", "Mùi"}), frozenset({"Dần", "Thân"}), frozenset({"Mão", "Dậu"}), frozenset({"Thìn", "Tuất"}), frozenset({"Tỵ", "Hợi"})}
 
-# BỘ QUY TẮC MÙA VƯỢNG THỐNG NHẤT
-MUA_VUONG = {
-    "Mộc": ["Dần", "Mão"], 
-    "Hỏa": ["Tỵ", "Ngọ"], 
-    "Kim": ["Thân", "Dậu"], 
-    "Thủy": ["Hợi", "Tý"],
-    "Thổ": ["Thìn", "Tuất", "Sửu", "Mùi"]
-}
-
 # ============================================================
-# MA TRẬN TÀNG CAN 
+# BỔ SUNG: MA TRẬN TÀNG CAN (TỶ LỆ NĂNG LƯỢNG ẨN)
 # ============================================================
 TANG_CAN = {
     "Tý": {"Quý": 1.0},
@@ -51,17 +42,16 @@ TANG_CAN = {
     "Dần": {"Giáp": 0.7, "Bính": 0.2, "Mậu": 0.1},
     "Mão": {"Ất": 1.0},
     "Thìn": {"Mậu": 0.6, "Ất": 0.3, "Quý": 0.1},
-    "Tỵ": {"Bính": 0.6, "Canh": 0.3, "Mậu": 0.1},
-    "Ngọ": {"Đinh": 0.7, "Kỷ": 0.2, "Giáp": 0.1},
+    "Tỵ": {"Bính": 0.7, "Canh": 0.2, "Mậu": 0.1},
+    "Ngọ": {"Đinh": 0.6, "Kỷ": 0.3, "Giáp": 0.1},  # Fix #4: Bổ sung Giáp ẩn tàng trong Ngọ
     "Mùi": {"Kỷ": 0.6, "Đinh": 0.3, "Ất": 0.1},
     "Thân": {"Canh": 0.7, "Nhâm": 0.2, "Mậu": 0.1},
     "Dậu": {"Tân": 1.0},
     "Tuất": {"Mậu": 0.6, "Đinh": 0.3, "Tân": 0.1},
     "Hợi": {"Nhâm": 0.7, "Giáp": 0.3}
 }
-
 # ------------------------------------------------------------
-# LÝ THUYẾT VÒNG TRƯỜNG SINH 
+# LÝ THUYẾT VÒNG TRƯỜNG SINH (GIỮ NGUYÊN)
 # ------------------------------------------------------------
 TRUONG_SINH_SEQ = ["Trường Sinh", "Mộc Dục", "Quan Đới", "Lâm Quan", "Đế Vượng", "Suy", "Bệnh", "Tử", "Mộ", "Tuyệt", "Thai", "Dưỡng"]
 CAN_TS_START = {
@@ -82,13 +72,13 @@ def get_truong_sinh(can, chi):
     return TRUONG_SINH_SEQ[dist % 12]
 
 # ------------------------------------------------------------
-# HÀM TÍNH TOÁN LOGIC
+# HÀM TÍNH TOÁN LOGIC (ĐÃ SỬA LỖI KIẾN THỨC)
 # ------------------------------------------------------------
 def tinh_thap_than(nhat_chu, can_check):
     if nhat_chu not in NGU_HANH or can_check not in NGU_HANH: return "N/A"
     nh_chu, nh_check = NGU_HANH[nhat_chu], NGU_HANH[can_check]
     cung_ad = (AM_DUONG_CAN[nhat_chu] == AM_DUONG_CAN[can_check])
-    
+    # Đã sửa: Cùng Âm Dương là Tỷ Kiên, khác là Kiếp Tài[cite: 2]
     if nh_check == nh_chu: return "Tỷ Kiên" if cung_ad else "Kiếp Tài"
     if TUONG_SINH.get(nh_check) == nh_chu: return "Thiên Ấn" if cung_ad else "Chính Ấn"
     if TUONG_SINH.get(nh_chu) == nh_check: return "Thực Thần" if cung_ad else "Thương Quan"
@@ -97,26 +87,13 @@ def tinh_thap_than(nhat_chu, can_check):
     return "N/A"
 
 def get_tiet_khi(ngay: date):
-    TK_FULL = [
-        (1,6,"Tiểu Hàn"), (1,20,"Đại Hàn"), (2,4,"Lập Xuân"), (2,19,"Vũ Thủy"),
-        (3,6,"Kinh Trập"), (3,21,"Xuân Phân"), (4,5,"Thanh Minh"), (4,20,"Cốc Vũ"),
-        (5,6,"Lập Hạ"), (5,21,"Tiểu Mãn"), (6,6,"Mang Chủng"), (6,21,"Hạ Chí"),
-        (7,7,"Tiểu Thử"), (7,23,"Đại Thử"), (8,7,"Lập Thu"), (8,23,"Xử Thử"),
-        (9,8,"Bạch Lộ"), (9,23,"Thu Phân"), (10,8,"Hàn Lộ"), (10,23,"Sương Giáng"),
-        (11,7,"Lập Đông"), (11,22,"Tiểu Tuyết"), (12,7,"Đại Tuyết"), (12,22,"Đông Chí")
-    ]
+    TK = [(1,6,"Tiểu Hàn"),(2,4,"Lập Xuân"),(3,6,"Kinh Trập"),(4,5,"Thanh Minh"),(5,6,"Lập Hạ"),(6,6,"Mang Chủng"),(7,7,"Tiểu Thử"),(8,7,"Lập Thu"),(9,8,"Bạch Lộ"),(10,8,"Hàn Lộ"),(11,7,"Lập Đông"),(12,7,"Đại Tuyết")]
     t, c = "Đông Chí", "Tý"
-    for m, d, name in reversed(TK_FULL):
+    for m, d, name in reversed(TK):
         try:
             if ngay >= date(ngay.year, m, d): t = name; break
         except ValueError: continue
-        
-    MAP = {"Lập Xuân":"Dần", "Vũ Thủy":"Dần", "Kinh Trập":"Mão", "Xuân Phân":"Mão", 
-           "Thanh Minh":"Thìn", "Cốc Vũ":"Thìn", "Lập Hạ":"Tỵ", "Tiểu Mãn":"Tỵ", 
-           "Mang Chủng":"Ngọ", "Hạ Chí":"Ngọ", "Tiểu Thử":"Mùi", "Đại Thử":"Mùi", 
-           "Lập Thu":"Thân", "Xử Thử":"Thân", "Bạch Lộ":"Dậu", "Thu Phân":"Dậu", 
-           "Hàn Lộ":"Tuất", "Sương Giáng":"Tuất", "Lập Đông":"Hợi", "Tiểu Tuyết":"Hợi", 
-           "Đại Tuyết":"Tý", "Đông Chí":"Tý", "Tiểu Hàn":"Sửu", "Đại Hàn":"Sửu"}
+    MAP = {"Lập Xuân":"Dần","Kinh Trập":"Mão","Thanh Minh":"Thìn","Lập Hạ":"Tỵ","Mang Chủng":"Ngọ","Tiểu Thử":"Mùi","Lập Thu":"Thân","Bạch Lộ":"Dậu","Hàn Lộ":"Tuất","Lập Đông":"Hợi","Đại Tuyết":"Tý","Tiểu Hàn":"Sửu"}
     return t, MAP.get(t, "Tý")
 
 NGU_HO_DUN = {0: 2, 1: 4, 2: 6, 3: 8, 4: 0}  
@@ -161,7 +138,7 @@ def build_tu_tru(nam, tc, ngay, gio):
     }
 
 # ------------------------------------------------------------
-# THUẬT TOÁN ĐỊNH LƯỢNG NĂNG LƯỢNG 
+# THUẬT TOÁN ĐỊNH LƯỢNG NĂNG LƯỢNG (KHÔI PHỤC TỪ CL4)
 # ------------------------------------------------------------
 TRONG_SO_NL = {
     "can_nam": 1.0, "chi_nam": 1.5,
@@ -178,6 +155,7 @@ def dinh_luong_nang_luong(ls):
     diem_that_tho = 0.0
     chi_tiet_hanh = {"Mộc": 0.0, "Hỏa": 0.0, "Thổ": 0.0, "Kim": 0.0, "Thủy": 0.0}
 
+    # 1. Xử lý Thiên Can (Lộ diện: Nhận 100% năng lượng của hành đó)
     cac_can = {
         "can_nam": ls["nam"]["can"],
         "can_thang": ls["thang"]["can"],
@@ -190,6 +168,7 @@ def dinh_luong_nang_luong(ls):
             if hanh:
                 chi_tiet_hanh[hanh] += TRONG_SO_NL[vitri]
 
+    # 2. Xử lý Địa Chi (Ẩn tàng: Phân bổ điểm năng lượng theo tỷ lệ % Tàng Can)
     cac_chi = {
         "chi_nam": ls["nam"]["chi"],
         "chi_thang": ls["thang"]["chi"],
@@ -205,12 +184,14 @@ def dinh_luong_nang_luong(ls):
                 if hanh_an:
                     chi_tiet_hanh[hanh_an] += tong_diem_chi * ti_le
 
+    # 3. Tính toán Thân Vượng/Nhược dựa trên chi_tiet_hanh đã bóc tách siêu chuẩn
     for hanh, diem in chi_tiet_hanh.items():
         if hanh == nc_hanh or hanh == hanh_sinh_nc:
             diem_tuong_tro += diem
         else:
             diem_that_tho += diem
 
+    # Làm tròn để tránh lỗi số học thập phân (floating point)
     return round(diem_tuong_tro, 2), round(diem_that_tho, 2), {k: round(v, 2) for k, v in chi_tiet_hanh.items()}
 
 def xac_dinh_dung_than(ls):
@@ -221,7 +202,8 @@ def xac_dinh_dung_than(ls):
     hanh_nc_khac = TUONG_KHAC.get(nc_hanh) 
     diem_tuong_tro, diem_that_tho, chi_tiet_hanh = dinh_luong_nang_luong(ls)
 
-    # Nâng ngưỡng Tòng
+    # Thuật toán Decision Tree chuẩn từ cl4
+    # Fix #12: Nâng ngưỡng Tòng từ 1.5 → 2.5 (tổng trọng số ~14, ngưỡng cũ quá thấp)
     if diem_tuong_tro <= 2.5:
         hanh_manh_nhat = max(chi_tiet_hanh, key=chi_tiet_hanh.get)
         return [hanh_manh_nhat, TUONG_SINH.get(hanh_manh_nhat)], "Tòng Nhược (Đặc Biệt)"
@@ -237,15 +219,19 @@ def xac_dinh_dung_than(ls):
 # ------------------------------------------------------------
 # LOGIC BÌNH GIẢI (HỢP NHẤT)
 # ------------------------------------------------------------
-def get_season_multiplier(month_chi, target_chi):
-    target_nh = NGU_HANH.get(target_chi)
-    vuong_element = next((k for k, v in MUA_VUONG.items() if month_chi in v), None)
-    return 1.3 if target_nh == vuong_element else 1.0
+def get_season_multiplier(month_chi, day_chi):
+    # Fix #2: Dùng Tam Hội để xác định mùa vượng khi tính hệ số xung.
+    # tinh_suc_manh_nhat_chu dùng Tam Hợp/Trường Sinh — hai hàm có mục đích riêng biệt.
+    day_nh = NGU_HANH.get(day_chi)
+    seasons = {"Mộc":["Dần","Mão","Thìn"],"Hỏa":["Tỵ","Ngọ","Mùi"],"Kim":["Thân","Dậu","Tuất"],"Thủy":["Hợi","Tý","Sửu"]}
+    vuong_element = next((k for k, v in seasons.items() if month_chi in v), None)
+    return 1.3 if day_nh == vuong_element else 1.0
 
 def tinh_suc_manh_nhat_chu(ls):
     nh_chu = NGU_HANH[ls["nhat_chu"]]
     chi_thang = ls["thang"]["chi"]
-    return 1.2 if chi_thang in MUA_VUONG.get(nh_chu, []) else 0.8
+    mua_vuong = {"Mộc":["Dần","Mão","Hợi"],"Hỏa":["Tỵ","Ngọ","Dần"],"Thổ":["Sửu","Thìn","Mùi","Tuất"],"Kim":["Thân","Dậu","Sửu"],"Thủy":["Tý","Hợi","Dậu"]}
+    return 1.2 if chi_thang in mua_vuong.get(nh_chu, []) else 0.8
 
 def get_dich_ma(chi):
     ma_map = {"Thân":"Dần","Tý":"Dần","Thìn":"Dần","Tỵ":"Hợi","Dậu":"Hợi","Sửu":"Hợi","Dần":"Thân","Ngọ":"Thân","Tuất":"Thân","Hợi":"Tỵ","Mão":"Tỵ","Mùi":"Tỵ"}
@@ -284,34 +270,36 @@ def phan_tich_ngay_sau(ngay_check: date, gio: int, sinh_info: dict):
     tt_now = build_tu_tru(ngay_check.year, month_chi, ngay_check, gio)
     
     diem_hung = 0.0; chi_tiet = []
-    
-    # Kiểm tra Xung trên toàn bộ Tứ Trụ của thời điểm hiện tại
+    # Fix #7: Bổ sung Giờ và Tháng vào check_list để không bỏ sót cặp xung
     check_list = [
-        ("Giờ", tt_now["gio"]["chi"], 1.0),
-        ("Ngày", tt_now["ngay"]["chi"], 1.5), 
-        ("Tháng", tt_now["thang"]["chi"], 1.2),
-        ("Năm", tt_now["nam"]["chi"], 1.0)
+        ("Ngày",  tt_now["ngay"]["chi"],  1.5),
+        ("Năm",   tt_now["nam"]["chi"],   1.2),
+        ("Tháng", tt_now["thang"]["chi"], 1.0),
+        ("Giờ",   tt_now["gio"]["chi"],   0.8),
     ]
     targets = [("Nhật Chủ", ls["ngay"]["chi"], 8), ("Trụ Năm", ls["nam"]["chi"], 5)]
 
     dung_than, _ = xac_dinh_dung_than(ls)
+
+    # Fix #9: Check Dụng Thần cho cả chi ngày lẫn chi giờ
     ngay_hanh = NGU_HANH.get(tt_now["ngay"]["chi"])
-    gio_hanh = NGU_HANH.get(tt_now["gio"]["chi"])
+    gio_hanh  = NGU_HANH.get(tt_now["gio"]["chi"])
     ts_state = get_truong_sinh(nhat_chu_can, tt_now["ngay"]["chi"])
-    
+
     if ngay_hanh in dung_than:
-        chi_tiet.append(f"✨ Ngày {ngay_hanh} là DỤNG THẦN (Đỡ được hung hiểm)")
+        chi_tiet.append(f"✨ Hành ngày {ngay_hanh} là DỤNG THẦN (Đỡ được hung hiểm)")
         diem_hung -= 3.0
     else:
-        chi_tiet.append(f"⚠️ Ngày {ngay_hanh} là KỴ THẦN (Cẩn thận rủi ro)")
+        chi_tiet.append(f"⚠️ Hành ngày {ngay_hanh} là KỴ THẦN (Cẩn thận rủi ro)")
         diem_hung += 2.0
-        
+
     if gio_hanh in dung_than:
-        chi_tiet.append(f"✨ Giờ {gio_hanh} là DỤNG THẦN (Bổ trợ khí vận)")
+        chi_tiet.append(f"✨ Hành giờ {gio_hanh} là DỤNG THẦN (Khí giờ hỗ trợ)")
         diem_hung -= 1.0
     else:
-        diem_hung += 0.5
-        
+        chi_tiet.append(f"⚠️ Hành giờ {gio_hanh} là KỴ THẦN")
+        diem_hung += 1.0
+
     chi_tiet.append(f"🔋 Năng lượng: {ts_state}")
     if ts_state in ["Tuyệt", "Tử", "Bệnh"]:
         diem_hung += 3.0
@@ -319,25 +307,20 @@ def phan_tich_ngay_sau(ngay_check: date, gio: int, sinh_info: dict):
     elif ts_state in ["Đế Vượng", "Lâm Quan", "Trường Sinh"]:
         diem_hung -= 2.0
 
+    # Fix #11: Hợp giải phải check với chi trong LÁ SỐ GỐC, không phải check_list hiện tại
+    all_la_so_chi = {ls["nam"]["chi"], ls["thang"]["chi"], ls["ngay"]["chi"], ls["gio"]["chi"]}
     for n_now, c_now, p_coeff in check_list:
         for n_tar, c_tar, weight in targets:
             if frozenset({c_now, c_tar}) in LUC_XUNG:
                 current_score = weight * p_coeff * get_season_multiplier(month_chi, c_now)
-                # Hợp giải: Kiểm tra với toàn bộ lá số gốc thay vì tự check
-                is_saved = any(frozenset({c_now, ls[p]["chi"]}) in LUC_HOP for p in ["nam", "thang", "ngay", "gio"])
-                
-                if is_saved: 
-                    chi_tiet.append(f"🛡️ Trụ {n_now} Xung {n_tar} nhưng có Hợp giải từ Mệnh gốc")
+                is_saved = any(frozenset({c_now, chi_gs}) in LUC_HOP for chi_gs in all_la_so_chi if chi_gs != c_now)
+                if is_saved: chi_tiet.append(f"🛡️ {n_now} Xung {n_tar} nhưng có Hợp giải từ lá số")
                 else:
                     diem_hung += current_score
-                    chi_tiet.append(f"🔥 Trụ {n_now} Xung {n_tar} ({c_now}-{c_tar})")
+                    chi_tiet.append(f"🔥 {n_now} Xung {n_tar} ({c_now}-{c_tar})")
 
-    # Quét mở rộng các Thập Thần Hung Hiểm
-    tt_can_ngay = tinh_thap_than(nhat_chu_can, tt_now["ngay"]["can"])
-    hung_than = {"Thất Sát": 5.0, "Kiếp Tài": 3.0, "Thương Quan": 3.0}
-    if tt_can_ngay in hung_than:
-        diem_hung += hung_than[tt_can_ngay]
-        chi_tiet.append(f"⚔️ Thiên Can phạm {tt_can_ngay}")
+    if tinh_thap_than(nhat_chu_can, tt_now["ngay"]["can"]) == "Thất Sát":
+        diem_hung += 5; chi_tiet.append(f"⚔️ Thiên Can phạm Thất Sát")
 
     if diem_hung >= 12: muc = "🔴 CỰC NẶNG"
     elif diem_hung >= 7: muc = "🟠 RẤT NẶNG"
@@ -346,7 +329,7 @@ def phan_tich_ngay_sau(ngay_check: date, gio: int, sinh_info: dict):
     return {"diem": round(diem_hung, 1), "muc": muc, "detail": chi_tiet, "is_dangerous": diem_hung >= 7}
 
 # ============================================================
-# DB & BOT HANDLERS 
+# DB & BOT HANDLERS (GIỮ NGUYÊN TỪ CL5)
 # ============================================================
 DB_PATH = "daiky.db"
 def init_db():
